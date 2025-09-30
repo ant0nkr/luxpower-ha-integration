@@ -127,22 +127,42 @@ class LxpModbusApiClient:
                     response_buf = await reader.read(expected_length)
                     
                     _LOGGER.debug(
-                        "Polling INPUT %d-%d: Req[%d]: %s, Resp[%d]: %s",
+                        "Polling INPUT %d-%d: Req[%d]: %s, Resp[%d/%d]: %s",
                         reg, reg + count - 1,
                         len(req),
                         req.hex(),
                         len(response_buf) if response_buf else 0,
+                        expected_length,
                         response_buf.hex() if response_buf else "None"
                     )
 
                     if response_buf and len(response_buf) > RESPONSE_OVERHEAD:
                         response = LxpResponse(response_buf)
-                        if not response.packet_error and response.serial_number == self._inverter_serial.encode() and _is_data_sane(response.parsed_values_dictionary, "input"):
+                        _LOGGER.debug(f"input_response {len(response.parsed_values_dictionary)}/{count} dict={response.parsed_values_dictionary}")
+                        if len(response.parsed_values_dictionary) == count:
+                            sane = _is_data_sane(response.parsed_values_dictionary, "input")
+                            if not response.packet_error and response.serial_number == self._inverter_serial.encode() and sane:
                                 newly_polled_input_regs.update(response.parsed_values_dictionary)
+                            else:
+                                _LOGGER.error(f"Invalid INPUT response packet_error={response.packet_error} sane={sane}")
+                                input_read_success = False # Mark as failed
                         else:
+                            _LOGGER.error("Invalid INPUT registers response expected=%d received=%d response[%d] %s:",
+                                count,
+                                len(response.parsed_values_dictionary),
+                                len(response_buf) if response_buf else 0,
+                                response_buf.hex() if response_buf else "None"
+                            )
                             input_read_success = False # Mark as failed
                     else:
+                        _LOGGER.error("Invalid INPUT response[%d] %s:", 
+                            len(response_buf) if response_buf else 0,
+                            response_buf.hex() if response_buf else "None"
+                        )
                         input_read_success = False # Mark as failed
+
+                    if not input_read_success:
+                       break
 
                 # Poll HOLD registers (expecting function code 3)
                 for reg in range(0, TOTAL_REGISTERS, self._block_size):
@@ -154,22 +174,42 @@ class LxpModbusApiClient:
                     response_buf = await reader.read(expected_length)
                     
                     _LOGGER.debug(
-                        "Polling HOLD %d-%d: Req[%d]: %s, Resp[%d]: %s",
+                        "Polling HOLD %d-%d: Req[%d]: %s, Resp[%d/%d]: %s",
                         reg, reg + count - 1,
                         len(req),
                         req.hex(),
                         len(response_buf) if response_buf else 0,
+                        expected_length,
                         response_buf.hex() if response_buf else "None"
                     )
                     
                     if response_buf and len(response_buf) > RESPONSE_OVERHEAD:
                         response = LxpResponse(response_buf)
-                        if not response.packet_error and response.serial_number == self._inverter_serial.encode() and _is_data_sane(response.parsed_values_dictionary, "hold"):
-                            newly_polled_hold_regs.update(response.parsed_values_dictionary)
+                        _LOGGER.debug(f"hold_response {len(response.parsed_values_dictionary)}/{count} dict={response.parsed_values_dictionary}")
+                        if len(response.parsed_values_dictionary) == count:
+                            sane = _is_data_sane(response.parsed_values_dictionary, "hold")
+                            if not response.packet_error and response.serial_number == self._inverter_serial.encode() and sane:
+                                newly_polled_hold_regs.update(response.parsed_values_dictionary)
+                            else:
+                                _LOGGER.error(f"Invalid HOLD response packet_error={response.packet_error} sane={sane}")
+                                hold_read_success = False # Mark as failed                                
                         else:
+                            _LOGGER.error("Invalid HOLD registers response expected=%d received=%d response[%d] %s:",
+                                count,
+                                len(response.parsed_values_dictionary),
+                                len(response_buf) if response_buf else 0,
+                                response_buf.hex() if response_buf else "None"
+                            )
                             hold_read_success = False # Mark as failed
                     else:
+                        _LOGGER.error("Invalid HOLD response[%d] %s:", 
+                            len(response_buf) if response_buf else 0,
+                            response_buf.hex() if response_buf else "None"
+                        )
                         hold_read_success = False # Mark as failed
+
+                    if not hold_read_success:
+                       break
 
                 # Close the connection
                 if writer:
@@ -181,9 +221,11 @@ class LxpModbusApiClient:
             
             # Merge new data with the last known good data
             if input_read_success:
+                _LOGGER.debug(f"input = {newly_polled_input_regs}")
                 self._last_good_input_regs = newly_polled_input_regs
 
             if hold_read_success:
+                _LOGGER.debug(f"hold = {newly_polled_hold_regs}")
                 self._last_good_hold_regs = newly_polled_hold_regs
 
             # Always return a complete (though possibly stale) dataset
@@ -198,7 +240,7 @@ class LxpModbusApiClient:
                 minutes, seconds = divmod(remainder, 60)
                 last_success_str = f"{int(hours)}h {int(minutes)}m {int(seconds)}s ago"
             
-            _LOGGER.error(f"Total polling failure: {ex}. Consecutive failures: {self._connection_failure_count}. Last success: {last_success_str}")
+            _LOGGER.exception(f"Total polling failure: {ex}. Consecutive failures: {self._connection_failure_count}. Last success: {last_success_str}")
             
             # If we have previously successful data and this is not a persistent failure,
             # return the cached data instead of raising an exception

@@ -48,13 +48,13 @@ class LxpResponse:
 
     @property
     def parsed_values(self):
-        if len(self.value) % 2 != 0:
+        if self.packet_error or (len(self.value) % 2 != 0):
             return []
         return [self.value[i] | (self.value[i+1] << 8) for i in range(0, len(self.value), 2)]
 
     @property
     def parsed_values_dictionary(self):
-        if len(self.value) % 2 != 0:
+        if self.packet_error or len(self.value) % 2 != 0:
             return {}
         start_register = self.register
         return {
