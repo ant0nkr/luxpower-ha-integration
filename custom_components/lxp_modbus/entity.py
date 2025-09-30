@@ -54,23 +54,33 @@ class ModbusBridgeEntity(CoordinatorEntity):
     def device_info(self):
         """Return device information for all entities."""
         
-        # Get the hold registers from the coordinator's data
-        hold_registers = self.coordinator.data.get("hold", {})
+        if "sub_device" in self._desc:
+            sub_device = self._desc.get("sub_device")
+            return {
+                "identifiers": {(DOMAIN, self._entry.entry_id, sub_device)},
+                "via_device": (DOMAIN, self._entry.entry_id),
+                "name": (self._entry.title or INTEGRATION_TITLE) + " " + sub_device,
+                "manufacturer": "LuxpowerTek",
+                "model": self._entry.data.get("model") or "Unknown",
+            }
+        else:
+            # Get the hold registers from the coordinator's data
+            hold_registers = self.coordinator.data.get("hold", {})
         
-        # Specifically check for the registers required for the firmware version
-        required_fw_regs = {k: hold_registers.get(k) for k in [7, 8, 9, 10]}
+            # Specifically check for the registers required for the firmware version
+            required_fw_regs = {k: hold_registers.get(k) for k in [7, 8, 9, 10]}
 
-        # Use the helper function to format the firmware version
-        firmware_version = format_firmware_version(hold_registers)
+            # Use the helper function to format the firmware version
+            firmware_version = format_firmware_version(hold_registers)
 
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.title or INTEGRATION_TITLE,
-            "manufacturer": "LuxpowerTek",
-            "model": self._entry.data.get("model") or "Unknown",
-            "serial_number": self._entry.data.get(CONF_INVERTER_SERIAL),
-            "sw_version": firmware_version,
-        }
+            return {
+                "identifiers": {(DOMAIN, self._entry.entry_id)},
+                "name": self._entry.title or INTEGRATION_TITLE,
+                "manufacturer": "LuxpowerTek",
+                "model": self._entry.data.get("model") or "Unknown",
+                "serial_number": self._entry.data.get(CONF_INVERTER_SERIAL),
+                "sw_version": firmware_version,
+            }
 
     @property
     def is_master(self) -> bool:

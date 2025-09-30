@@ -7,6 +7,7 @@ from ..constants.hold_registers import *
 NUMBER_TYPES = [
     # --- System & Grid ---
     {
+        "sub_device": "Internals",       
         "name": "Modbus Address",
         "register": H_COM_ADDRESS,
         "register_type": "hold",
@@ -21,6 +22,7 @@ NUMBER_TYPES = [
         "master_only": True,
     },
     {
+        "sub_device": "Grid",
         "name": "Grid Connect Time",
         "register": H_CONNECT_TIME,
         "register_type": "hold",

@@ -92,6 +92,7 @@ SENSOR_TYPES = [
 
     # --- Core Status & PV Information ---
     {
+        "sub_device": "PV",
         "name": "PV1 Voltage",
         "register": I_VPV1,
         "register_type": "input",
@@ -262,6 +263,7 @@ SENSOR_TYPES = [
 
     # --- Battery Information ---
     {
+        "sub_device": "Battery",
         "name": "Battery Voltage",
         "register": I_VBAT,
         "register_type": "input",
@@ -348,6 +350,7 @@ SENSOR_TYPES = [
 
     # --- Grid Information ---
     {
+        "sub_device": "Grid",
         "name": "Grid Voltage",
         "register": I_VAC_R,
         "register_type": "input",
@@ -574,6 +577,7 @@ SENSOR_TYPES = [
 
     # --- EPS (Off-Grid) Information ---
     {
+        "sub_device": "EPS",
         "name": "EPS Voltage",
         "register": I_VEPS_R,
         "register_type": "input",
@@ -842,6 +846,7 @@ SENSOR_TYPES = [
         "master_only": False,
     },
     {
+        "sub_device": "Generator",
         "name": "Generator Energy Today",
         "register": I_EGEN_DAY,
         "register_type": "input",
@@ -900,6 +905,7 @@ SENSOR_TYPES = [
         "master_only": False,
     },
     {
+        "sub_device": "Internals",       
         "name": "Radiator Temperature",
         "register": I_TRADIATOR1,
         "register_type": "input",
