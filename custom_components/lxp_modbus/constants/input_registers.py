@@ -213,6 +213,7 @@ I_PLOAD = 170 # Load consumption when working in on-grid mode (Unit: W).
 # --- Added in V23 (2025-06-14) ---
 
 # Additional AC Couple Power
+I_AC_COUPLE_POWER = 153 # AC Couple Power (Unit: W, Range: -32768-32767).
 I_AC_COUPLE_POWER_S = 206 # AC Couple Power S-phase (Unit: W, Range: -32768-32767).
 I_AC_COUPLE_POWER_T = 207 # AC Couple Power T-phase (Unit: W, Range: -32768-32767).
 
