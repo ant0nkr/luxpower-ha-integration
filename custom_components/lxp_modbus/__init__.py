@@ -32,7 +32,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     lock = asyncio.Lock()
     block_size = entry.data.get(CONF_REGISTER_BLOCK_SIZE, DEFAULT_REGISTER_BLOCK_SIZE)
     connection_retries = entry.data.get(CONF_CONNECTION_RETRIES, DEFAULT_CONNECTION_RETRIES)
-    api_client = LxpModbusApiClient(host, port, dongle_serial, inverter_serial, lock, block_size, connection_retries)
+    protocol_type = entry.data.get(CONF_PROTOCOL_TYPE, DEFAULT_PROTOCOL_TYPE)
+    api_client = LxpModbusApiClient(host, port, dongle_serial, inverter_serial, lock, block_size, connection_retries, True, protocol_type)
 
     # Create a custom DataUpdateCoordinator with reconnection logic
     class LxpModbusDataUpdateCoordinator(DataUpdateCoordinator):

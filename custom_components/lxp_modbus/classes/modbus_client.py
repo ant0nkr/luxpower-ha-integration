@@ -8,6 +8,8 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 from ..const import *
 from .lxp_request_builder import LxpRequestBuilder
 from .lxp_response import LxpResponse
+from .standard_modbus_request_builder import StandardModbusRequestBuilder
+from .standard_modbus_response import StandardModbusResponse
 
 from ..constants.hold_registers import (
     H_AC_CHARGE_START_TIME, H_AC_CHARGE_END_TIME, H_AC_CHARGE_START_TIME_1, H_AC_CHARGE_END_TIME_1,
@@ -56,7 +58,7 @@ class LxpModbusApiClient:
 
     def __init__(self, host: str, port: int, dongle_serial: str, inverter_serial: str, lock: asyncio.Lock, 
                  block_size: int = 125, connection_retries: int = DEFAULT_CONNECTION_RETRIES,
-                 skip_initial_data: bool = True):
+                 skip_initial_data: bool = True, protocol_type: str = PROTOCOL_TYPE_LXP):
         """Initialize the API client."""
         self._host = host
         self._port = port
@@ -66,11 +68,22 @@ class LxpModbusApiClient:
         self._block_size = block_size
         self._connection_retries = connection_retries
         self._skip_initial_data = skip_initial_data
+        self._protocol_type = protocol_type
         self._last_good_input_regs = {}
         self._last_good_hold_regs = {}
         self._connection_retry_count = 0
         self._last_successful_connection = None
         self._connection_failure_count = 0
+        
+        # Set request builder and response class based on protocol type
+        if self._protocol_type == PROTOCOL_TYPE_DEFAULT:
+            self._request_builder = StandardModbusRequestBuilder
+            self._response_class = StandardModbusResponse
+            # For standard Modbus, we don't need to skip initial data
+            self._skip_initial_data = False
+        else:
+            self._request_builder = LxpRequestBuilder
+            self._response_class = LxpResponse
         
         # Packet recovery statistics
         self._recovery_attempts_total = 0
@@ -163,8 +176,16 @@ class LxpModbusApiClient:
 
     async def async_request_registers(self, writer, reader, reg, request_type, function_code) -> dict:
         count = min(self._block_size, TOTAL_REGISTERS - reg)
-        req = LxpRequestBuilder.prepare_packet_for_read(self._dongle_serial.encode(), self._inverter_serial.encode(), reg, count, function_code)
-        expected_length = RESPONSE_OVERHEAD + (count * 2)
+        req = self._request_builder.prepare_packet_for_read(self._dongle_serial.encode(), self._inverter_serial.encode(), reg, count, function_code)
+        
+        # Calculate expected response length based on protocol type
+        if self._protocol_type == PROTOCOL_TYPE_DEFAULT:
+            # Standard Modbus: Address + Function + Byte Count + Data + CRC
+            expected_length = 5 + (count * 2)  # 3 bytes header + data + 2 bytes CRC
+        else:
+            # LXP protocol
+            expected_length = RESPONSE_OVERHEAD + (count * 2)
+            
         writer.write(req)
         await writer.drain()
         response_buf = await asyncio.wait_for(reader.read(expected_length), timeout=3) 
@@ -181,19 +202,36 @@ class LxpModbusApiClient:
             response_buf.hex() if response_buf else "None"
         )
 
-        if response_buf and len(response_buf) > RESPONSE_OVERHEAD:
-            response = LxpResponse(response_buf)
+        if response_buf and len(response_buf) > (5 if self._protocol_type == PROTOCOL_TYPE_DEFAULT else RESPONSE_OVERHEAD):
+            response = self._response_class(response_buf)
 
-            # Attempt safe packet recovery if needed
-            if response.packet_error and response.packet_length_calced > expected_length:
+            # Attempt safe packet recovery if needed (only for LXP protocol)
+            if (self._protocol_type == PROTOCOL_TYPE_LXP and response.packet_error 
+                and hasattr(response, 'packet_length_calced') and response.packet_length_calced > expected_length):
                 response = await self.async_safe_packet_recovery(reader, response_buf, expected_length, request_type, function_code)
                
-            if (not response.packet_error 
-               and response.serial_number == self._inverter_serial.encode() 
-               and function_code == response.device_function
-               and reg == response.register 
-               and _is_data_sane(response.parsed_values_dictionary, request_type)
-               ):
+            # Validate response based on protocol type
+            if self._protocol_type == PROTOCOL_TYPE_DEFAULT:
+                # Standard Modbus validation
+                is_valid = (not response.packet_error 
+                           and function_code == response.device_function
+                           and _is_data_sane(response.parsed_values_dictionary, request_type))
+                
+                # For standard Modbus, we need to map the response registers to actual register addresses
+                if is_valid and response.parsed_values_dictionary:
+                    mapped_registers = {}
+                    for i, value in response.parsed_values_dictionary.items():
+                        mapped_registers[reg + i] = value
+                    response.parsed_values_dictionary = mapped_registers
+            else:
+                # LXP protocol validation
+                is_valid = (not response.packet_error 
+                           and response.serial_number == self._inverter_serial.encode() 
+                           and function_code == response.device_function
+                           and reg == response.register 
+                           and _is_data_sane(response.parsed_values_dictionary, request_type))
+                           
+            if is_valid:
                
                 # We missed or received more registers but response appear to be valid
                 # keeping this debug log can help on more strange cases
@@ -370,13 +408,21 @@ class LxpModbusApiClient:
 
                     await self.async_discard_initial_data(reader)
                     
-                    req = LxpRequestBuilder.prepare_packet_for_write(
+                    req = self._request_builder.prepare_packet_for_write(
                         self._dongle_serial.encode(), self._inverter_serial.encode(), register, value
                     )
                     writer.write(req)
                     await writer.drain()
 
-                    response_buf = await reader.read(WRITE_RESPONSE_LENGTH)
+                    # Calculate expected response length based on protocol type
+                    if self._protocol_type == PROTOCOL_TYPE_DEFAULT:
+                        # Standard Modbus write response: Address + Function + Register + Value + CRC = 8 bytes
+                        response_length = 8
+                    else:
+                        # LXP protocol
+                        response_length = WRITE_RESPONSE_LENGTH
+                        
+                    response_buf = await reader.read(response_length)
                     
                     _LOGGER.debug(
                         "Modbus WRITE: Sent to reg %s, value %s, resp: %s",
@@ -396,22 +442,30 @@ class LxpModbusApiClient:
                         await asyncio.sleep(1)
                         continue
 
-                    response = LxpResponse(response_buf)
+                    response = self._response_class(response_buf)
                     if response.packet_error:
                         _LOGGER.warning(f"Write attempt {attempt + 1} failed: Inverter returned a packet error. {response.info}")
                         await asyncio.sleep(1)
                         continue
                     
-                    response_dict = response.parsed_values_dictionary
-                    if register in response_dict:
-                        received_value = response_dict.get(register)
-                        if received_value == value:
-                            _LOGGER.info("Successfully wrote register %s with value %s.", register, value)
-                            return True # Success!
-
-                        _LOGGER.warning(f"Write attempt {attempt + 1} failed: Confirmation mismatch, sent={value} received={received_value}")
+                    # Validation based on protocol type
+                    if self._protocol_type == PROTOCOL_TYPE_DEFAULT:
+                        # For standard Modbus, check if the response confirms the write
+                        if (hasattr(response, 'register') and response.register == register):
+                            _LOGGER.info("Successfully wrote register %s with value %s (standard Modbus).", register, value)
+                            return True
                     else:
-                        _LOGGER.warning(f"Write attempt {attempt + 1} failed: Confirmation mismatch, written register {register} not received on confirmation. {response.info}")
+                        # LXP protocol validation
+                        response_dict = response.parsed_values_dictionary
+                        if register in response_dict:
+                            received_value = response_dict.get(register)
+                            if received_value == value:
+                                _LOGGER.info("Successfully wrote register %s with value %s (LXP protocol).", register, value)
+                                return True # Success!
+
+                            _LOGGER.warning(f"Write attempt {attempt + 1} failed: Confirmation mismatch, sent={value} received={received_value}")
+                        else:
+                            _LOGGER.warning(f"Write attempt {attempt + 1} failed: Confirmation mismatch, written register {register} not received on confirmation. {response.info}")
 
                     await asyncio.sleep(1)
 

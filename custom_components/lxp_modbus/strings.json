@@ -15,7 +15,8 @@
           "register_block_size": "Register Block Size (125 normal, 40 for old firmware)",
           "connection_retries": "Connection Retry Attempts",
           "read_only": "Read Only Mode",
-          "enable_device_grouping": "Enable Device Grouping"
+          "enable_device_grouping": "Enable Device Grouping",
+          "protocol_type": "Protocol Type"
         }
       }
     },
@@ -42,7 +43,8 @@
           "register_block_size": "Register Block Size (125 normal, 40 for old firmware)",
           "connection_retries": "Connection Retry Attempts",
           "read_only": "Read Only Mode",
-          "enable_device_grouping": "Enable Device Grouping"
+          "enable_device_grouping": "Enable Device Grouping",
+          "protocol_type": "Protocol Type"
         }
       }
     },

@@ -26,18 +26,29 @@ def validate_connection_retries(value):
         raise vol.Invalid("Connection retry attempts must be between 1 and 10.")
     return value
 
-async def get_inverter_model_from_device(host, port, dongle_serial, inverter_serial):
+async def get_inverter_model_from_device(host, port, dongle_serial, inverter_serial, protocol_type=PROTOCOL_TYPE_LXP):
     """Attempt to connect to the inverter and read the model."""
     try:
         reader, writer = await asyncio.open_connection(host, port)
-        req = LxpRequestBuilder.prepare_packet_for_read(dongle_serial.encode(), inverter_serial.encode(), 7, 2, 3)
+        
+        if protocol_type == PROTOCOL_TYPE_DEFAULT:
+            # Use standard Modbus for testing
+            from .classes.standard_modbus_request_builder import StandardModbusRequestBuilder
+            from .classes.standard_modbus_response import StandardModbusResponse
+            req = StandardModbusRequestBuilder.prepare_packet_for_read(dongle_serial.encode(), inverter_serial.encode(), 7, 2, 3)
+            response_class = StandardModbusResponse
+        else:
+            # Use LXP protocol for testing  
+            req = LxpRequestBuilder.prepare_packet_for_read(dongle_serial.encode(), inverter_serial.encode(), 7, 2, 3)
+            response_class = LxpResponse
+            
         writer.write(req)
         await writer.drain()
         response_buf = await reader.read(512)
         writer.close()
         await writer.wait_closed()
         if not response_buf: return None
-        response = LxpResponse(response_buf)
+        response = response_class(response_buf)
         if response.packet_error: return None
         model = decode_model_from_registers(response.parsed_values_dictionary)
         return model
@@ -68,7 +79,13 @@ class LxpModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors[CONF_CONNECTION_RETRIES] = "invalid_connection_retries"
                 
                 if not errors:
-                    model = await get_inverter_model_from_device(user_input[CONF_HOST], user_input[CONF_PORT], user_input[CONF_DONGLE_SERIAL], user_input[CONF_INVERTER_SERIAL])
+                    model = await get_inverter_model_from_device(
+                        user_input[CONF_HOST], 
+                        user_input[CONF_PORT], 
+                        user_input[CONF_DONGLE_SERIAL], 
+                        user_input[CONF_INVERTER_SERIAL],
+                        user_input.get(CONF_PROTOCOL_TYPE, DEFAULT_PROTOCOL_TYPE)
+                    )
                     if not model:
                         errors["base"] = "model_fetch_failed"
                     else:
@@ -89,6 +106,10 @@ class LxpModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_REGISTER_BLOCK_SIZE, default=DEFAULT_REGISTER_BLOCK_SIZE): vol.In([DEFAULT_REGISTER_BLOCK_SIZE, LEGACY_REGISTER_BLOCK_SIZE]),
             vol.Required(CONF_CONNECTION_RETRIES, default=DEFAULT_CONNECTION_RETRIES): vol.All(int, vol.Range(min=1, max=10)),
             vol.Optional(CONF_ENABLE_DEVICE_GROUPING, default=DEFAULT_ENABLE_DEVICE_GROUPING): bool,
+            vol.Required(CONF_PROTOCOL_TYPE, default=DEFAULT_PROTOCOL_TYPE): vol.In({
+                PROTOCOL_TYPE_LXP: "LuxPower (LXP Protocol)",
+                PROTOCOL_TYPE_DEFAULT: "Standard Modbus RTU"
+            }),
         })
         return self.async_show_form(step_id="user", data_schema=self.add_suggested_values_to_schema(data_schema, user_input), errors=errors)
 
@@ -118,7 +139,8 @@ class LxpModbusOptionsFlow(config_entries.OptionsFlow):
                         user_input[CONF_HOST],
                         user_input[CONF_PORT],
                         user_input[CONF_DONGLE_SERIAL],
-                        user_input[CONF_INVERTER_SERIAL]
+                        user_input[CONF_INVERTER_SERIAL],
+                        user_input.get(CONF_PROTOCOL_TYPE, current_config.get(CONF_PROTOCOL_TYPE, DEFAULT_PROTOCOL_TYPE))
                     )
                     if not model:
                         errors["base"] = "model_fetch_failed"
@@ -147,6 +169,10 @@ class LxpModbusOptionsFlow(config_entries.OptionsFlow):
             vol.Optional(CONF_REGISTER_BLOCK_SIZE, default=current_config.get(CONF_REGISTER_BLOCK_SIZE, DEFAULT_REGISTER_BLOCK_SIZE)): vol.In([DEFAULT_REGISTER_BLOCK_SIZE, LEGACY_REGISTER_BLOCK_SIZE]),
             vol.Required(CONF_CONNECTION_RETRIES, default=current_config.get(CONF_CONNECTION_RETRIES, DEFAULT_CONNECTION_RETRIES)): vol.All(int, vol.Range(min=1, max=10)),
             vol.Optional(CONF_ENABLE_DEVICE_GROUPING, default=current_config.get(CONF_ENABLE_DEVICE_GROUPING, DEFAULT_ENABLE_DEVICE_GROUPING)): bool,
+            vol.Required(CONF_PROTOCOL_TYPE, default=current_config.get(CONF_PROTOCOL_TYPE, DEFAULT_PROTOCOL_TYPE)): vol.In({
+                PROTOCOL_TYPE_LXP: "LuxPower (LXP Protocol)",
+                PROTOCOL_TYPE_DEFAULT: "Standard Modbus RTU"
+            }),
         })
 
         return self.async_show_form(

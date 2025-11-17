@@ -23,6 +23,7 @@ CONF_READ_ONLY = "read_only"
 CONF_REGISTER_BLOCK_SIZE = "register_block_size"
 CONF_CONNECTION_RETRIES = "connection_retries"
 CONF_ENABLE_DEVICE_GROUPING = "enable_device_grouping"
+CONF_PROTOCOL_TYPE = "protocol_type"
 
 INTEGRATION_TITLE = "LuxPower Inverter (Modbus)"
 
@@ -35,6 +36,11 @@ DEFAULT_PORT = 8000
 DEFAULT_REGISTER_BLOCK_SIZE = 125
 DEFAULT_CONNECTION_RETRIES = 3
 DEFAULT_ENABLE_DEVICE_GROUPING = True
+DEFAULT_PROTOCOL_TYPE = "lxp"
+
+# Protocol type options
+PROTOCOL_TYPE_LXP = "lxp"
+PROTOCOL_TYPE_DEFAULT = "default"
 
 # Legacy firmware may only support smaller block sizes
 LEGACY_REGISTER_BLOCK_SIZE = 40

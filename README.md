@@ -62,6 +62,27 @@ Configuration is done entirely through the Home Assistant UI.
 | **Register Block Size** | integer | (Optional) Size of register blocks to read. Use `125` (default) for most inverters, use `40` for older firmware versions that don't support larger blocks. |
 | **Connection Retry Attempts** | integer | Number of connection retry attempts before giving up (default is 3). |
 | **Enable Device Grouping** | boolean | (v0.2.0+) Group entities into logical sub-devices for better organization (default: enabled). |
+| **Protocol Type** | string | (Optional) Communication protocol: `lxp` for LuxPower dongles (default), `default` for standard Modbus RTU. |
+
+> [!TIP]
+> ### Protocol Type Configuration
+>
+> The **Protocol Type** setting allows you to choose between two communication modes:
+>
+> * **LuxPower (LXP Protocol)** (Default): Use this for LuxPower WiFi dongles and inverters that use the proprietary LuxPower communication protocol. This is the standard mode that has been tested extensively.
+> * **Standard Modbus RTU**: Use this for direct Modbus communication following the official Modbus RTU protocol specification. This mode sends standard Modbus packets without dongle-specific encapsulation and is useful for:
+>   - Direct serial/RS485 connections to the inverter
+>   - Third-party Modbus gateways or converters
+>   - Custom hardware setups
+>   - Troubleshooting communication issues
+>
+> **When to use Standard Modbus RTU:**
+> - You're connecting directly via RS485/serial without a LuxPower dongle
+> - You're using a generic Modbus-to-WiFi/Ethernet converter
+> - The LXP protocol is not working with your setup
+> - You want to follow strict Modbus RTU specifications
+>
+> If you're unsure, start with the default **LXP Protocol** setting, as it's designed specifically for LuxPower systems.
 
 > [!WARNING]
 > ### Important Note on Read-Only Mode (Available since v0.1.5)
