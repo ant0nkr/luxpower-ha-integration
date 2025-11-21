@@ -43,7 +43,7 @@ SENSOR_TYPES = [
         "visible": True,
         "extract": lambda registers, entry: (
             lambda battery_discharge, grid_power_total, pv_total: (
-                pv_total + grid_power_total - battery_discharge
+                battery_discharge - pv_total - grid_power_total
             )
         )(
             registers.get(I_PDISCHARGE, 0),
