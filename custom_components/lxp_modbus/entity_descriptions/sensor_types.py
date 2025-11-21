@@ -31,6 +31,27 @@ SENSOR_TYPES = [
         ),
         "master_only": False,
     },
+    {
+        "name": "Energy Flow",
+        "register_type": "calculated",
+        "depends_on": [I_PDISCHARGE, I_PTOUSER, I_PTOUSER_S, I_PTOUSER_T, I_PTOUSER_L1N, I_PTOUSER_L2N, I_PPV1, I_PPV2, I_PPV3, I_PPV4, I_PPV5, I_PPV6],
+        "unit": "W",
+        "device_class": "power",
+        "state_class": "measurement",
+        "icon": "mdi:transmission-tower-export",
+        "enabled": True,
+        "visible": True,
+        "extract": lambda registers, entry: (
+            lambda battery_discharge, grid_power_total, pv_total: (
+                pv_total + grid_power_total - battery_discharge
+            )
+        )(
+            registers.get(I_PDISCHARGE, 0),
+            sum(registers.get(grid_reg, 0) for grid_reg in [I_PTOUSER, I_PTOUSER_S, I_PTOUSER_T, I_PTOUSER_L1N, I_PTOUSER_L2N]),
+            sum(registers.get(pv_reg, 0) for pv_reg in [I_PPV1, I_PPV2, I_PPV3, I_PPV4, I_PPV5, I_PPV6])
+        ),
+        "master_only": False,
+    },
 
     # --- State Sensors ---
     {
