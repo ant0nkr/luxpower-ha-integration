@@ -104,9 +104,10 @@ Configuration is done entirely through the Home Assistant UI.
 > * **Grid Group** (42 entities): Utility grid connection and import/export data
 > * **EPS Group** (18 entities): Emergency Power Supply / backup load outputs
 > * **Generator Group** (12 entities): Backup generator monitoring and controls
+> * **AC Couple Group** (8 entities): AC Couple monitoring and controls
 > * **Battery Group** (62 entities): BMS data, cell voltages, temperatures, and battery controls
 > * **Temperatures & Diagnostics** (12 entities): Temperature sensors, fault codes, and diagnostic data
-> * **Settings & Schedules** (56 entities): Configuration settings, timing schedules, and power management
+> * **Settings & Schedules** (55 entities): Configuration settings, timing schedules, and power management
 >
 > **Configuration Options:**
 > * **Enabled by default** for new installations - provides much better organization in Home Assistant
