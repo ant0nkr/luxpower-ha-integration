@@ -56,6 +56,7 @@ class ModbusBridgeSensor(ModbusBridgeEntity, SensorEntity):
         
         # Set sensor-specific attributes from the description dictionary
         self._attr_state_class = self._desc.get("state_class")
+        self._attr_suggested_display_precision = self._desc.get("suggested_display_precision")
         
         if "options" in self._desc:
             # This is a text sensor (like Inverter State), so it doesn't have a unit
