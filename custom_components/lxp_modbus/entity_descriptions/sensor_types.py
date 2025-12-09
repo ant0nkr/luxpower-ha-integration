@@ -67,6 +67,22 @@ SENSOR_TYPES = [
         "master_only": False,
         "device_group": "Battery",
     },
+    {
+        "name": "Grid Flow",
+        "register_type": "calculated",
+        "depends_on": [I_PTOGRID, I_PTOUSER],
+        "unit": "W",
+        "device_class": "power",
+        "state_class": "measurement",
+        "icon": "mdi:transmission-tower",
+        "enabled": True,
+        "visible": True,
+        "extract": lambda registers, entry: (
+            registers.get(I_PTOUSER, 0) - registers.get(I_PTOGRID, 0)
+        ),
+        "master_only": False,
+        "device_group": "Grid",
+    },
 
     # --- State Sensors ---
     {
