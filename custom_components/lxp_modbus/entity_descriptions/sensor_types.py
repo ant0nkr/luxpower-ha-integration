@@ -62,7 +62,7 @@ SENSOR_TYPES = [
         "enabled": True,
         "visible": True,
         "extract": lambda registers, entry: (
-            registers.get(I_PCHARGE, 0) - registers.get(I_PDISCHARGE, 0)
+            registers.get(I_PDISCHARGE, 0) - registers.get(I_PCHARGE, 0)
         ),
         "master_only": False,
         "device_group": "Battery",
