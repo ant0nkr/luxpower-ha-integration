@@ -223,7 +223,7 @@ SWITCH_TYPES = [
         "enabled": True,
         "visible": True,
         "master_only": True,
-        "device_group": "Settings & Schedules",
+        "device_group": "AC Couple",
     },
     {
         "name": "PV Arc Detection",
