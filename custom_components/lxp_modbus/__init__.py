@@ -163,8 +163,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if is_read_only:
         # In read-only mode, we only load the sensor platform.
         # It will be responsible for creating all entities.
-        _LOGGER.info("Read-only mode enabled. Loading sensor platform only.")
-        platforms_to_load = [Platform.SENSOR]
+        _LOGGER.info("Read-only mode enabled. Loading sensor and binary_sensor platforms only.")
+        platforms_to_load = [Platform.SENSOR, Platform.BINARY_SENSOR]
     else:
         # In normal mode, load all platforms.
         platforms_to_load = PLATFORMS

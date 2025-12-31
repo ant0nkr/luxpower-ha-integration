@@ -5,6 +5,7 @@ DOMAIN = "lxp_modbus"
 
 PLATFORMS: Final = [
     Platform.SENSOR,
+    Platform.BINARY_SENSOR,
     Platform.NUMBER,
     Platform.TIME,
     Platform.SELECT,
