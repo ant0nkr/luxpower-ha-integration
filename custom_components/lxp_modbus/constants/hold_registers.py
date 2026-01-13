@@ -266,7 +266,9 @@ H_CHARGE_FIRST_END_VOLT = 201 # Charging priority voltage limit (Unit: 0.1V, Ran
 H_FORCED_DISCHG_END_VOLT = 202 # Forced discharge voltage limit (Unit: 0.1V, Range: 400-560).
 H_GRID_REGULATION = 203 # Grid regulation settings (Unit: bitfield, Range: 0-65535).
 H_LEAD_CAPACITY = 204 # Capacity of the lead acid battery (Unit: Ah, Range: 50-5000).
-H_GRID_TYPE = 205 # 0:Split240V, 1:3ph-208V, 2:Single-240V, 3:Single-230V, 4:Split-200V.
+H_GRID_TYPE = 205 # Grid Type settings:
+# For US Split-phase: 0:Split240V/120V, 1:3phase 208V/120V, 2:Single 240V, 3:Single 230V, 4:Split 200V/100V
+# For Three-phase: 0:Delta 230/230V, 1:Star 120V/208V, 2:Star 240V/415V, 3:Star 230V/400V
 H_GRID_PEAK_SHAVING_POWER = 206 # Grid Peak Shaving Power (Unit: 0.1kW, Range: 0-255).
 H_GRID_PEAK_SHAVING_SOC = 207 # Grid Peak Shaving SOC (Unit: %, Range: 0-100).
 H_GRID_PEAK_SHAVING_VOLT = 208 # Grid Peak Shaving Voltage (Unit: 0.1V, Range: 480-590).
@@ -313,6 +315,11 @@ H_FLOAT_CHG_THRESHOLD = 236 # When charge current in CV lower than this, switch 
 H_GEN_COOL_DOWN_TIME = 237 # Gen cool down time when dry contactor is off (Unit: 0.1min, Range: 1-255).
 # Registers 238-240 are not defined in the Hold Register table.
 H_PERMIT_SERVICE = 241 # Service mode enable (0=disable, non-0=enable, Range: 0-65535).
+H_NPE_THRESHOLD = 242 # Zero ground detection voltage range setting value (Unit: 0.1V, Range: 0-65535).
+# Register 243 is reserved.
+H_BOOTLOADER_VERSION_AND_FLAG = 244 # Bootloader Version (Bit0-7: 0-255) and UpdateFlag (Bit8-15).
+H_FLASH_SIZE = 245 # Flash memory size (Range: 0-65535).
+# Registers 246-247 are not defined in the Hold Register table.
 
 # --- Added in V23 (2025-06-14) ---
 
@@ -335,6 +342,306 @@ H_GEN_START_TIME_1 = 258 # Generator period 1 start time (Hour and Minute).
 H_GEN_END_TIME_1 = 259 # Generator period 1 end time (Hour and Minute).
 H_BUS_VOLT_HIGH_SET = 260 # Bus voltage high limit setting (Unit: 0.1V, Range: 0-8000).
 H_DISCHARGE_RECOVERY = 261 # Discharge recovery setting (Unit: %, Range: 0-100).
-H_GEN_END_TIME = 257 # Generator end time (Hour and Minute).
-H_GEN_START_TIME_1 = 258 # Generator period 1 start time (Hour and Minute).
-H_GEN_END_TIME_1 = 259 # Generator period 1 end time (Hour and Minute).
+
+# ===========================================================================================
+# 7-DAY SCHEDULING SYSTEM (Registers 500-723)
+# ===========================================================================================
+# These registers provide advanced scheduling capabilities for AC Charge, Forced Charge,
+# Forced Discharge, and Peak Shaving operations across all 7 days of the week.
+# Each day has 8 registers allowing configuration of 2 time periods with power/SOC/voltage limits.
+
+# --- AC CHARGE SCHEDULING (500-555) ---
+# Monday: 500-507, Tuesday: 508-515, Wednesday: 516-523, Thursday: 524-531
+# Friday: 532-539, Saturday: 540-547, Sunday: 548-555
+
+# Monday AC Charge
+H_AC_CHG_POWER1_MON = 500 # Monday AC Charge Power1 (Bit0-7, Unit: 0.1kW, Range: 0-255) and SOC Limit1 (Bit8-15, Unit: %, Range: 0-100).
+H_AC_CHG_VOLT1_MON = 501 # Monday AC Charge Voltage Limit1 (Unit: 0.1V, Range: 400-590).
+H_AC_CHG_TIME1_START_MON = 502 # Monday AC Charge Start Hour1 (Bit0-7, Range: 0-23) and Start Minute1 (Bit8-15, Range: 0-59).
+H_AC_CHG_TIME1_END_MON = 503 # Monday AC Charge End Hour1 (Bit0-7, Range: 0-23) and End Minute1 (Bit8-15, Range: 0-59).
+H_AC_CHG_POWER2_MON = 504 # Monday AC Charge Power2 (Bit0-7, Unit: 0.1kW, Range: 0-255) and SOC Limit2 (Bit8-15, Unit: %, Range: 0-100).
+H_AC_CHG_VOLT2_MON = 505 # Monday AC Charge Voltage Limit2 (Unit: 0.1V, Range: 400-590).
+H_AC_CHG_TIME2_START_MON = 506 # Monday AC Charge Start Hour2 (Bit0-7, Range: 0-23) and Start Minute2 (Bit8-15, Range: 0-59).
+H_AC_CHG_TIME2_END_MON = 507 # Monday AC Charge End Hour2 (Bit0-7, Range: 0-23) and End Minute2 (Bit8-15, Range: 0-59).
+
+# Tuesday AC Charge
+H_AC_CHG_POWER1_TUE = 508 # Tuesday AC Charge Power1 and SOC Limit1.
+H_AC_CHG_VOLT1_TUE = 509 # Tuesday AC Charge Voltage Limit1.
+H_AC_CHG_TIME1_START_TUE = 510 # Tuesday AC Charge Start Time1.
+H_AC_CHG_TIME1_END_TUE = 511 # Tuesday AC Charge End Time1.
+H_AC_CHG_POWER2_TUE = 512 # Tuesday AC Charge Power2 and SOC Limit2.
+H_AC_CHG_VOLT2_TUE = 513 # Tuesday AC Charge Voltage Limit2.
+H_AC_CHG_TIME2_START_TUE = 514 # Tuesday AC Charge Start Time2.
+H_AC_CHG_TIME2_END_TUE = 515 # Tuesday AC Charge End Time2.
+
+# Wednesday AC Charge
+H_AC_CHG_POWER1_WED = 516 # Wednesday AC Charge Power1 and SOC Limit1.
+H_AC_CHG_VOLT1_WED = 517 # Wednesday AC Charge Voltage Limit1.
+H_AC_CHG_TIME1_START_WED = 518 # Wednesday AC Charge Start Time1.
+H_AC_CHG_TIME1_END_WED = 519 # Wednesday AC Charge End Time1.
+H_AC_CHG_POWER2_WED = 520 # Wednesday AC Charge Power2 and SOC Limit2.
+H_AC_CHG_VOLT2_WED = 521 # Wednesday AC Charge Voltage Limit2.
+H_AC_CHG_TIME2_START_WED = 522 # Wednesday AC Charge Start Time2.
+H_AC_CHG_TIME2_END_WED = 523 # Wednesday AC Charge End Time2.
+
+# Thursday AC Charge
+H_AC_CHG_POWER1_THU = 524 # Thursday AC Charge Power1 and SOC Limit1.
+H_AC_CHG_VOLT1_THU = 525 # Thursday AC Charge Voltage Limit1.
+H_AC_CHG_TIME1_START_THU = 526 # Thursday AC Charge Start Time1.
+H_AC_CHG_TIME1_END_THU = 527 # Thursday AC Charge End Time1.
+H_AC_CHG_POWER2_THU = 528 # Thursday AC Charge Power2 and SOC Limit2.
+H_AC_CHG_VOLT2_THU = 529 # Thursday AC Charge Voltage Limit2.
+H_AC_CHG_TIME2_START_THU = 530 # Thursday AC Charge Start Time2.
+H_AC_CHG_TIME2_END_THU = 531 # Thursday AC Charge End Time2.
+
+# Friday AC Charge
+H_AC_CHG_POWER1_FRI = 532 # Friday AC Charge Power1 and SOC Limit1.
+H_AC_CHG_VOLT1_FRI = 533 # Friday AC Charge Voltage Limit1.
+H_AC_CHG_TIME1_START_FRI = 534 # Friday AC Charge Start Time1.
+H_AC_CHG_TIME1_END_FRI = 535 # Friday AC Charge End Time1.
+H_AC_CHG_POWER2_FRI = 536 # Friday AC Charge Power2 and SOC Limit2.
+H_AC_CHG_VOLT2_FRI = 537 # Friday AC Charge Voltage Limit2.
+H_AC_CHG_TIME2_START_FRI = 538 # Friday AC Charge Start Time2.
+H_AC_CHG_TIME2_END_FRI = 539 # Friday AC Charge End Time2.
+
+# Saturday AC Charge
+H_AC_CHG_POWER1_SAT = 540 # Saturday AC Charge Power1 and SOC Limit1.
+H_AC_CHG_VOLT1_SAT = 541 # Saturday AC Charge Voltage Limit1.
+H_AC_CHG_TIME1_START_SAT = 542 # Saturday AC Charge Start Time1.
+H_AC_CHG_TIME1_END_SAT = 543 # Saturday AC Charge End Time1.
+H_AC_CHG_POWER2_SAT = 544 # Saturday AC Charge Power2 and SOC Limit2.
+H_AC_CHG_VOLT2_SAT = 545 # Saturday AC Charge Voltage Limit2.
+H_AC_CHG_TIME2_START_SAT = 546 # Saturday AC Charge Start Time2.
+H_AC_CHG_TIME2_END_SAT = 547 # Saturday AC Charge End Time2.
+
+# Sunday AC Charge
+H_AC_CHG_POWER1_SUN = 548 # Sunday AC Charge Power1 and SOC Limit1.
+H_AC_CHG_VOLT1_SUN = 549 # Sunday AC Charge Voltage Limit1.
+H_AC_CHG_TIME1_START_SUN = 550 # Sunday AC Charge Start Time1.
+H_AC_CHG_TIME1_END_SUN = 551 # Sunday AC Charge End Time1.
+H_AC_CHG_POWER2_SUN = 552 # Sunday AC Charge Power2 and SOC Limit2.
+H_AC_CHG_VOLT2_SUN = 553 # Sunday AC Charge Voltage Limit2.
+H_AC_CHG_TIME2_START_SUN = 554 # Sunday AC Charge Start Time2.
+H_AC_CHG_TIME2_END_SUN = 555 # Sunday AC Charge End Time2.
+
+# --- FORCED CHARGE SCHEDULING (556-611) ---
+# Monday: 556-563, Tuesday: 564-571, Wednesday: 572-579, Thursday: 580-587
+# Friday: 588-595, Saturday: 596-603, Sunday: 604-611
+
+# Monday Forced Charge
+H_FORCED_CHG_POWER1_MON = 556 # Monday Forced Charge Power1 (Bit0-7, Unit: 0.1kW, Range: 0-255) and SOC Limit1 (Bit8-15, Unit: %, Range: 0-100).
+H_FORCED_CHG_VOLT1_MON = 557 # Monday Forced Charge Voltage Limit1 (Unit: 0.1V, Range: 400-590).
+H_FORCED_CHG_TIME1_START_MON = 558 # Monday Forced Charge Start Hour1 (Bit0-7, Range: 0-23) and Start Minute1 (Bit8-15, Range: 0-59).
+H_FORCED_CHG_TIME1_END_MON = 559 # Monday Forced Charge End Hour1 (Bit0-7, Range: 0-23) and End Minute1 (Bit8-15, Range: 0-59).
+H_FORCED_CHG_POWER2_MON = 560 # Monday Forced Charge Power2 (Bit0-7, Unit: 0.1kW, Range: 0-255) and SOC Limit2 (Bit8-15, Unit: %, Range: 0-100).
+H_FORCED_CHG_VOLT2_MON = 561 # Monday Forced Charge Voltage Limit2 (Unit: 0.1V, Range: 400-590).
+H_FORCED_CHG_TIME2_START_MON = 562 # Monday Forced Charge Start Hour2 (Bit0-7, Range: 0-23) and Start Minute2 (Bit8-15, Range: 0-59).
+H_FORCED_CHG_TIME2_END_MON = 563 # Monday Forced Charge End Hour2 (Bit0-7, Range: 0-23) and End Minute2 (Bit8-15, Range: 0-59).
+
+# Tuesday Forced Charge
+H_FORCED_CHG_POWER1_TUE = 564 # Tuesday Forced Charge Power1 and SOC Limit1.
+H_FORCED_CHG_VOLT1_TUE = 565 # Tuesday Forced Charge Voltage Limit1.
+H_FORCED_CHG_TIME1_START_TUE = 566 # Tuesday Forced Charge Start Time1.
+H_FORCED_CHG_TIME1_END_TUE = 567 # Tuesday Forced Charge End Time1.
+H_FORCED_CHG_POWER2_TUE = 568 # Tuesday Forced Charge Power2 and SOC Limit2.
+H_FORCED_CHG_VOLT2_TUE = 569 # Tuesday Forced Charge Voltage Limit2.
+H_FORCED_CHG_TIME2_START_TUE = 570 # Tuesday Forced Charge Start Time2.
+H_FORCED_CHG_TIME2_END_TUE = 571 # Tuesday Forced Charge End Time2.
+
+# Wednesday Forced Charge
+H_FORCED_CHG_POWER1_WED = 572 # Wednesday Forced Charge Power1 and SOC Limit1.
+H_FORCED_CHG_VOLT1_WED = 573 # Wednesday Forced Charge Voltage Limit1.
+H_FORCED_CHG_TIME1_START_WED = 574 # Wednesday Forced Charge Start Time1.
+H_FORCED_CHG_TIME1_END_WED = 575 # Wednesday Forced Charge End Time1.
+H_FORCED_CHG_POWER2_WED = 576 # Wednesday Forced Charge Power2 and SOC Limit2.
+H_FORCED_CHG_VOLT2_WED = 577 # Wednesday Forced Charge Voltage Limit2.
+H_FORCED_CHG_TIME2_START_WED = 578 # Wednesday Forced Charge Start Time2.
+H_FORCED_CHG_TIME2_END_WED = 579 # Wednesday Forced Charge End Time2.
+
+# Thursday Forced Charge
+H_FORCED_CHG_POWER1_THU = 580 # Thursday Forced Charge Power1 and SOC Limit1.
+H_FORCED_CHG_VOLT1_THU = 581 # Thursday Forced Charge Voltage Limit1.
+H_FORCED_CHG_TIME1_START_THU = 582 # Thursday Forced Charge Start Time1.
+H_FORCED_CHG_TIME1_END_THU = 583 # Thursday Forced Charge End Time1.
+H_FORCED_CHG_POWER2_THU = 584 # Thursday Forced Charge Power2 and SOC Limit2.
+H_FORCED_CHG_VOLT2_THU = 585 # Thursday Forced Charge Voltage Limit2.
+H_FORCED_CHG_TIME2_START_THU = 586 # Thursday Forced Charge Start Time2.
+H_FORCED_CHG_TIME2_END_THU = 587 # Thursday Forced Charge End Time2.
+
+# Friday Forced Charge
+H_FORCED_CHG_POWER1_FRI = 588 # Friday Forced Charge Power1 and SOC Limit1.
+H_FORCED_CHG_VOLT1_FRI = 589 # Friday Forced Charge Voltage Limit1.
+H_FORCED_CHG_TIME1_START_FRI = 590 # Friday Forced Charge Start Time1.
+H_FORCED_CHG_TIME1_END_FRI = 591 # Friday Forced Charge End Time1.
+H_FORCED_CHG_POWER2_FRI = 592 # Friday Forced Charge Power2 and SOC Limit2.
+H_FORCED_CHG_VOLT2_FRI = 593 # Friday Forced Charge Voltage Limit2.
+H_FORCED_CHG_TIME2_START_FRI = 594 # Friday Forced Charge Start Time2.
+H_FORCED_CHG_TIME2_END_FRI = 595 # Friday Forced Charge End Time2.
+
+# Saturday Forced Charge
+H_FORCED_CHG_POWER1_SAT = 596 # Saturday Forced Charge Power1 and SOC Limit1.
+H_FORCED_CHG_VOLT1_SAT = 597 # Saturday Forced Charge Voltage Limit1.
+H_FORCED_CHG_TIME1_START_SAT = 598 # Saturday Forced Charge Start Time1.
+H_FORCED_CHG_TIME1_END_SAT = 599 # Saturday Forced Charge End Time1.
+H_FORCED_CHG_POWER2_SAT = 600 # Saturday Forced Charge Power2 and SOC Limit2.
+H_FORCED_CHG_VOLT2_SAT = 601 # Saturday Forced Charge Voltage Limit2.
+H_FORCED_CHG_TIME2_START_SAT = 602 # Saturday Forced Charge Start Time2.
+H_FORCED_CHG_TIME2_END_SAT = 603 # Saturday Forced Charge End Time2.
+
+# Sunday Forced Charge
+H_FORCED_CHG_POWER1_SUN = 604 # Sunday Forced Charge Power1 and SOC Limit1.
+H_FORCED_CHG_VOLT1_SUN = 605 # Sunday Forced Charge Voltage Limit1.
+H_FORCED_CHG_TIME1_START_SUN = 606 # Sunday Forced Charge Start Time1.
+H_FORCED_CHG_TIME1_END_SUN = 607 # Sunday Forced Charge End Time1.
+H_FORCED_CHG_POWER2_SUN = 608 # Sunday Forced Charge Power2 and SOC Limit2.
+H_FORCED_CHG_VOLT2_SUN = 609 # Sunday Forced Charge Voltage Limit2.
+H_FORCED_CHG_TIME2_START_SUN = 610 # Sunday Forced Charge Start Time2.
+H_FORCED_CHG_TIME2_END_SUN = 611 # Sunday Forced Charge End Time2.
+
+# --- FORCED DISCHARGE SCHEDULING (612-667) ---
+# Monday: 612-619, Tuesday: 620-627, Wednesday: 628-635, Thursday: 636-643
+# Friday: 644-651, Saturday: 652-659, Sunday: 660-667
+
+# Monday Forced Discharge
+H_FORCED_DISCHG_POWER1_MON = 612 # Monday Forced Discharge Power1 (Bit0-7, Unit: 0.1kW, Range: 0-255) and SOC Limit1 (Bit8-15, Unit: %, Range: 0-100).
+H_FORCED_DISCHG_VOLT1_MON = 613 # Monday Forced Discharge Voltage Limit1 (Unit: 0.1V, Range: 400-590).
+H_FORCED_DISCHG_TIME1_START_MON = 614 # Monday Forced Discharge Start Hour1 (Bit0-7, Range: 0-23) and Start Minute1 (Bit8-15, Range: 0-59).
+H_FORCED_DISCHG_TIME1_END_MON = 615 # Monday Forced Discharge End Hour1 (Bit0-7, Range: 0-23) and End Minute1 (Bit8-15, Range: 0-59).
+H_FORCED_DISCHG_POWER2_MON = 616 # Monday Forced Discharge Power2 (Bit0-7, Unit: 0.1kW, Range: 0-255) and SOC Limit2 (Bit8-15, Unit: %, Range: 0-100).
+H_FORCED_DISCHG_VOLT2_MON = 617 # Monday Forced Discharge Voltage Limit2 (Unit: 0.1V, Range: 400-590).
+H_FORCED_DISCHG_TIME2_START_MON = 618 # Monday Forced Discharge Start Hour2 (Bit0-7, Range: 0-23) and Start Minute2 (Bit8-15, Range: 0-59).
+H_FORCED_DISCHG_TIME2_END_MON = 619 # Monday Forced Discharge End Hour2 (Bit0-7, Range: 0-23) and End Minute2 (Bit8-15, Range: 0-59).
+
+# Tuesday Forced Discharge
+H_FORCED_DISCHG_POWER1_TUE = 620 # Tuesday Forced Discharge Power1 and SOC Limit1.
+H_FORCED_DISCHG_VOLT1_TUE = 621 # Tuesday Forced Discharge Voltage Limit1.
+H_FORCED_DISCHG_TIME1_START_TUE = 622 # Tuesday Forced Discharge Start Time1.
+H_FORCED_DISCHG_TIME1_END_TUE = 623 # Tuesday Forced Discharge End Time1.
+H_FORCED_DISCHG_POWER2_TUE = 624 # Tuesday Forced Discharge Power2 and SOC Limit2.
+H_FORCED_DISCHG_VOLT2_TUE = 625 # Tuesday Forced Discharge Voltage Limit2.
+H_FORCED_DISCHG_TIME2_START_TUE = 626 # Tuesday Forced Discharge Start Time2.
+H_FORCED_DISCHG_TIME2_END_TUE = 627 # Tuesday Forced Discharge End Time2.
+
+# Wednesday Forced Discharge
+H_FORCED_DISCHG_POWER1_WED = 628 # Wednesday Forced Discharge Power1 and SOC Limit1.
+H_FORCED_DISCHG_VOLT1_WED = 629 # Wednesday Forced Discharge Voltage Limit1.
+H_FORCED_DISCHG_TIME1_START_WED = 630 # Wednesday Forced Discharge Start Time1.
+H_FORCED_DISCHG_TIME1_END_WED = 631 # Wednesday Forced Discharge End Time1.
+H_FORCED_DISCHG_POWER2_WED = 632 # Wednesday Forced Discharge Power2 and SOC Limit2.
+H_FORCED_DISCHG_VOLT2_WED = 633 # Wednesday Forced Discharge Voltage Limit2.
+H_FORCED_DISCHG_TIME2_START_WED = 634 # Wednesday Forced Discharge Start Time2.
+H_FORCED_DISCHG_TIME2_END_WED = 635 # Wednesday Forced Discharge End Time2.
+
+# Thursday Forced Discharge
+H_FORCED_DISCHG_POWER1_THU = 636 # Thursday Forced Discharge Power1 and SOC Limit1.
+H_FORCED_DISCHG_VOLT1_THU = 637 # Thursday Forced Discharge Voltage Limit1.
+H_FORCED_DISCHG_TIME1_START_THU = 638 # Thursday Forced Discharge Start Time1.
+H_FORCED_DISCHG_TIME1_END_THU = 639 # Thursday Forced Discharge End Time1.
+H_FORCED_DISCHG_POWER2_THU = 640 # Thursday Forced Discharge Power2 and SOC Limit2.
+H_FORCED_DISCHG_VOLT2_THU = 641 # Thursday Forced Discharge Voltage Limit2.
+H_FORCED_DISCHG_TIME2_START_THU = 642 # Thursday Forced Discharge Start Time2.
+H_FORCED_DISCHG_TIME2_END_THU = 643 # Thursday Forced Discharge End Time2.
+
+# Friday Forced Discharge
+H_FORCED_DISCHG_POWER1_FRI = 644 # Friday Forced Discharge Power1 and SOC Limit1.
+H_FORCED_DISCHG_VOLT1_FRI = 645 # Friday Forced Discharge Voltage Limit1.
+H_FORCED_DISCHG_TIME1_START_FRI = 646 # Friday Forced Discharge Start Time1.
+H_FORCED_DISCHG_TIME1_END_FRI = 647 # Friday Forced Discharge End Time1.
+H_FORCED_DISCHG_POWER2_FRI = 648 # Friday Forced Discharge Power2 and SOC Limit2.
+H_FORCED_DISCHG_VOLT2_FRI = 649 # Friday Forced Discharge Voltage Limit2.
+H_FORCED_DISCHG_TIME2_START_FRI = 650 # Friday Forced Discharge Start Time2.
+H_FORCED_DISCHG_TIME2_END_FRI = 651 # Friday Forced Discharge End Time2.
+
+# Saturday Forced Discharge
+H_FORCED_DISCHG_POWER1_SAT = 652 # Saturday Forced Discharge Power1 and SOC Limit1.
+H_FORCED_DISCHG_VOLT1_SAT = 653 # Saturday Forced Discharge Voltage Limit1.
+H_FORCED_DISCHG_TIME1_START_SAT = 654 # Saturday Forced Discharge Start Time1.
+H_FORCED_DISCHG_TIME1_END_SAT = 655 # Saturday Forced Discharge End Time1.
+H_FORCED_DISCHG_POWER2_SAT = 656 # Saturday Forced Discharge Power2 and SOC Limit2.
+H_FORCED_DISCHG_VOLT2_SAT = 657 # Saturday Forced Discharge Voltage Limit2.
+H_FORCED_DISCHG_TIME2_START_SAT = 658 # Saturday Forced Discharge Start Time2.
+H_FORCED_DISCHG_TIME2_END_SAT = 659 # Saturday Forced Discharge End Time2.
+
+# Sunday Forced Discharge
+H_FORCED_DISCHG_POWER1_SUN = 660 # Sunday Forced Discharge Power1 and SOC Limit1.
+H_FORCED_DISCHG_VOLT1_SUN = 661 # Sunday Forced Discharge Voltage Limit1.
+H_FORCED_DISCHG_TIME1_START_SUN = 662 # Sunday Forced Discharge Start Time1.
+H_FORCED_DISCHG_TIME1_END_SUN = 663 # Sunday Forced Discharge End Time1.
+H_FORCED_DISCHG_POWER2_SUN = 664 # Sunday Forced Discharge Power2 and SOC Limit2.
+H_FORCED_DISCHG_VOLT2_SUN = 665 # Sunday Forced Discharge Voltage Limit2.
+H_FORCED_DISCHG_TIME2_START_SUN = 666 # Sunday Forced Discharge Start Time2.
+H_FORCED_DISCHG_TIME2_END_SUN = 667 # Sunday Forced Discharge End Time2.
+
+# --- PEAK SHAVING SCHEDULING (668-723) ---
+# Monday: 668-675, Tuesday: 676-683, Wednesday: 684-691, Thursday: 692-699
+# Friday: 700-707, Saturday: 708-715, Sunday: 716-723
+
+# Monday Peak Shaving
+H_PEAK_SHAV_POWER1_MON = 668 # Monday Peak Shaving Power1 (Bit0-7, Unit: 0.1kW, Range: 0-255) and SOC Limit1 (Bit8-15, Unit: %, Range: 0-100).
+H_PEAK_SHAV_VOLT1_MON = 669 # Monday Peak Shaving Voltage Limit1 (Unit: 0.1V, Range: 400-590).
+H_PEAK_SHAV_TIME1_START_MON = 670 # Monday Peak Shaving Start Hour1 (Bit0-7, Range: 0-23) and Start Minute1 (Bit8-15, Range: 0-59).
+H_PEAK_SHAV_TIME1_END_MON = 671 # Monday Peak Shaving End Hour1 (Bit0-7, Range: 0-23) and End Minute1 (Bit8-15, Range: 0-59).
+H_PEAK_SHAV_POWER2_MON = 672 # Monday Peak Shaving Power2 (Bit0-7, Unit: 0.1kW, Range: 0-255) and SOC Limit2 (Bit8-15, Unit: %, Range: 0-100).
+H_PEAK_SHAV_VOLT2_MON = 673 # Monday Peak Shaving Voltage Limit2 (Unit: 0.1V, Range: 400-590).
+H_PEAK_SHAV_TIME2_START_MON = 674 # Monday Peak Shaving Start Hour2 (Bit0-7, Range: 0-23) and Start Minute2 (Bit8-15, Range: 0-59).
+H_PEAK_SHAV_TIME2_END_MON = 675 # Monday Peak Shaving End Hour2 (Bit0-7, Range: 0-23) and End Minute2 (Bit8-15, Range: 0-59).
+
+# Tuesday Peak Shaving
+H_PEAK_SHAV_POWER1_TUE = 676 # Tuesday Peak Shaving Power1 and SOC Limit1.
+H_PEAK_SHAV_VOLT1_TUE = 677 # Tuesday Peak Shaving Voltage Limit1.
+H_PEAK_SHAV_TIME1_START_TUE = 678 # Tuesday Peak Shaving Start Time1.
+H_PEAK_SHAV_TIME1_END_TUE = 679 # Tuesday Peak Shaving End Time1.
+H_PEAK_SHAV_POWER2_TUE = 680 # Tuesday Peak Shaving Power2 and SOC Limit2.
+H_PEAK_SHAV_VOLT2_TUE = 681 # Tuesday Peak Shaving Voltage Limit2.
+H_PEAK_SHAV_TIME2_START_TUE = 682 # Tuesday Peak Shaving Start Time2.
+H_PEAK_SHAV_TIME2_END_TUE = 683 # Tuesday Peak Shaving End Time2.
+
+# Wednesday Peak Shaving
+H_PEAK_SHAV_POWER1_WED = 684 # Wednesday Peak Shaving Power1 and SOC Limit1.
+H_PEAK_SHAV_VOLT1_WED = 685 # Wednesday Peak Shaving Voltage Limit1.
+H_PEAK_SHAV_TIME1_START_WED = 686 # Wednesday Peak Shaving Start Time1.
+H_PEAK_SHAV_TIME1_END_WED = 687 # Wednesday Peak Shaving End Time1.
+H_PEAK_SHAV_POWER2_WED = 688 # Wednesday Peak Shaving Power2 and SOC Limit2.
+H_PEAK_SHAV_VOLT2_WED = 689 # Wednesday Peak Shaving Voltage Limit2.
+H_PEAK_SHAV_TIME2_START_WED = 690 # Wednesday Peak Shaving Start Time2.
+H_PEAK_SHAV_TIME2_END_WED = 691 # Wednesday Peak Shaving End Time2.
+
+# Thursday Peak Shaving
+H_PEAK_SHAV_POWER1_THU = 692 # Thursday Peak Shaving Power1 and SOC Limit1.
+H_PEAK_SHAV_VOLT1_THU = 693 # Thursday Peak Shaving Voltage Limit1.
+H_PEAK_SHAV_TIME1_START_THU = 694 # Thursday Peak Shaving Start Time1.
+H_PEAK_SHAV_TIME1_END_THU = 695 # Thursday Peak Shaving End Time1.
+H_PEAK_SHAV_POWER2_THU = 696 # Thursday Peak Shaving Power2 and SOC Limit2.
+H_PEAK_SHAV_VOLT2_THU = 697 # Thursday Peak Shaving Voltage Limit2.
+H_PEAK_SHAV_TIME2_START_THU = 698 # Thursday Peak Shaving Start Time2.
+H_PEAK_SHAV_TIME2_END_THU = 699 # Thursday Peak Shaving End Time2.
+
+# Friday Peak Shaving
+H_PEAK_SHAV_POWER1_FRI = 700 # Friday Peak Shaving Power1 and SOC Limit1.
+H_PEAK_SHAV_VOLT1_FRI = 701 # Friday Peak Shaving Voltage Limit1.
+H_PEAK_SHAV_TIME1_START_FRI = 702 # Friday Peak Shaving Start Time1.
+H_PEAK_SHAV_TIME1_END_FRI = 703 # Friday Peak Shaving End Time1.
+H_PEAK_SHAV_POWER2_FRI = 704 # Friday Peak Shaving Power2 and SOC Limit2.
+H_PEAK_SHAV_VOLT2_FRI = 705 # Friday Peak Shaving Voltage Limit2.
+H_PEAK_SHAV_TIME2_START_FRI = 706 # Friday Peak Shaving Start Time2.
+H_PEAK_SHAV_TIME2_END_FRI = 707 # Friday Peak Shaving End Time2.
+
+# Saturday Peak Shaving
+H_PEAK_SHAV_POWER1_SAT = 708 # Saturday Peak Shaving Power1 and SOC Limit1.
+H_PEAK_SHAV_VOLT1_SAT = 709 # Saturday Peak Shaving Voltage Limit1.
+H_PEAK_SHAV_TIME1_START_SAT = 710 # Saturday Peak Shaving Start Time1.
+H_PEAK_SHAV_TIME1_END_SAT = 711 # Saturday Peak Shaving End Time1.
+H_PEAK_SHAV_POWER2_SAT = 712 # Saturday Peak Shaving Power2 and SOC Limit2.
+H_PEAK_SHAV_VOLT2_SAT = 713 # Saturday Peak Shaving Voltage Limit2.
+H_PEAK_SHAV_TIME2_START_SAT = 714 # Saturday Peak Shaving Start Time2.
+H_PEAK_SHAV_TIME2_END_SAT = 715 # Saturday Peak Shaving End Time2.
+
+# Sunday Peak Shaving
+H_PEAK_SHAV_POWER1_SUN = 716 # Sunday Peak Shaving Power1 and SOC Limit1.
+H_PEAK_SHAV_VOLT1_SUN = 717 # Sunday Peak Shaving Voltage Limit1.
+H_PEAK_SHAV_TIME1_START_SUN = 718 # Sunday Peak Shaving Start Time1.
+H_PEAK_SHAV_TIME1_END_SUN = 719 # Sunday Peak Shaving End Time1.
+H_PEAK_SHAV_POWER2_SUN = 720 # Sunday Peak Shaving Power2 and SOC Limit2.
+H_PEAK_SHAV_VOLT2_SUN = 721 # Sunday Peak Shaving Voltage Limit2.
+H_PEAK_SHAV_TIME2_START_SUN = 722 # Sunday Peak Shaving Start Time2.
+H_PEAK_SHAV_TIME2_END_SUN = 723 # Sunday Peak Shaving End Time2.

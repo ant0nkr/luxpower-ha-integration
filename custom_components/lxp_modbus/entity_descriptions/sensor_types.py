@@ -3,7 +3,7 @@
 #
 
 from ..constants.input_registers import *
-from ..constants.hold_registers import H_NO_FULL_CHG_DAY_CONFIG
+from ..constants.hold_registers import H_NO_FULL_CHG_DAY_CONFIG, H_BOOTLOADER_VERSION_AND_FLAG
 from ..constants.fault_codes import FAULT_CODES
 from ..constants.warning_codes import WARNING_CODES
 from ..const import CONF_RATED_POWER
@@ -404,6 +404,34 @@ SENSOR_TYPES = [
         "visible": True,
         "master_only": True,
         "device_group": "Battery",
+    },
+    {
+        "name": "Bootloader Version",
+        "register": H_BOOTLOADER_VERSION_AND_FLAG,
+        "register_type": "hold",
+        "extract": lambda value: value & 0xFF,
+        "unit": "",
+        "device_class": None,
+        "state_class": None,
+        "scale": 1.0,
+        "icon": "mdi:chip",
+        "enabled": False,
+        "visible": True,
+        "master_only": True,
+    },
+    {
+        "name": "Bootloader Update Flag",
+        "register": H_BOOTLOADER_VERSION_AND_FLAG,
+        "register_type": "hold",
+        "extract": lambda value: (value >> 8) & 0xFF,
+        "unit": "",
+        "device_class": None,
+        "state_class": None,
+        "scale": 1.0,
+        "icon": "mdi:update",
+        "enabled": False,
+        "visible": True,
+        "master_only": True,
     },
     {
         "name": "Battery Charge Power",
