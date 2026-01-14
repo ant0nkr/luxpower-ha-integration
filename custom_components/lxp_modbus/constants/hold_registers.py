@@ -349,6 +349,27 @@ H_DISCHARGE_RECOVERY = 261 # Discharge recovery setting (Unit: %, Range: 0-100).
 # These registers provide advanced scheduling capabilities for AC Charge, Forced Charge,
 # Forced Discharge, and Peak Shaving operations across all 7 days of the week.
 # Each day has 8 registers allowing configuration of 2 time periods with power/SOC/voltage limits.
+#
+# PREREQUISITE: Bit 3 of Hold Register 233 (H_FUNCTION_ENABLE_5) must be enabled to use these registers.
+#
+# WRITE OPERATION (Day-by-Day):
+# - Only multiple register writes are supported (no single register writes)
+# - Each module uses 16 bytes (8 registers) per day, 112 bytes (56 registers) for 7 days
+# - Total: 448 bytes (224 registers) for all 4 modules over 7 days
+# - Write sequence per day (8 registers):
+#   Power1+SOC1, Volt1, StartHour1+StartMin1, EndHour1+EndMin1,
+#   Power2+SOC2, Volt2, StartHour2+StartMin2, EndHour2+EndMin2
+# - Write address must be base_address + (day_offset * 8)
+#
+# READ OPERATION (All 7 Days at Once):
+# - Reading from any address in module range returns all 7 days (112 bytes / 56 registers)
+# - Read sequence differs from write: all values of same type grouped together
+#   Power1[7], SOC1[7], Volt1[7], StartHour1[7], StartMin1[7], EndHour1[7], EndMin1[7],
+#   Power2[7], SOC2[7], Volt2[7], StartHour2[7], StartMin2[7], EndHour2[7], EndMin2[7]
+# - AC Charge: Read address 500-555 returns all 7 days
+# - Forced Charge: Read address 556-611 returns all 7 days
+# - Forced Discharge: Read address 612-667 returns all 7 days
+# - Peak Shaving: Read address 668-723 returns all 7 days
 
 # --- AC CHARGE SCHEDULING (500-555) ---
 # Monday: 500-507, Tuesday: 508-515, Wednesday: 516-523, Thursday: 524-531

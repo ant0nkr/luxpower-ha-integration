@@ -285,6 +285,19 @@ SWITCH_TYPES = [
         "device_group": "Battery",
     },
     {
+        "name": "7-Day Schedule Enable",
+        "register": H_FUNCTION_ENABLE_5, # 233
+        "register_type": "hold",
+        "extract": lambda reg: get_bits(reg, 3, 1),
+        "compose": lambda orig, value: set_bits(orig, 3, 1, value),
+        "icon": "mdi:calendar-check",
+        "device_class": "switch",
+        "enabled": False,
+        "visible": True,
+        "master_only": True,
+        "device_group": "Schedules",
+    },
+    {
         "name": "WattNode CT1 Direction",
         "register": H_WATTNODE_CT_DIRECTIONS,
         "register_type": "hold",
