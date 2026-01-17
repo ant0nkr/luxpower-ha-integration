@@ -89,6 +89,7 @@ class LxpModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_REGISTER_BLOCK_SIZE, default=DEFAULT_REGISTER_BLOCK_SIZE): vol.In([DEFAULT_REGISTER_BLOCK_SIZE, LEGACY_REGISTER_BLOCK_SIZE]),
             vol.Required(CONF_CONNECTION_RETRIES, default=DEFAULT_CONNECTION_RETRIES): vol.All(int, vol.Range(min=1, max=10)),
             vol.Optional(CONF_ENABLE_DEVICE_GROUPING, default=DEFAULT_ENABLE_DEVICE_GROUPING): bool,
+            vol.Required(CONF_BATTERY_ENTITIES, default=DEFAULT_BATTERY_ENTITIES): str,
         })
         return self.async_show_form(step_id="user", data_schema=self.add_suggested_values_to_schema(data_schema, user_input), errors=errors)
 
@@ -147,6 +148,7 @@ class LxpModbusOptionsFlow(config_entries.OptionsFlow):
             vol.Optional(CONF_REGISTER_BLOCK_SIZE, default=current_config.get(CONF_REGISTER_BLOCK_SIZE, DEFAULT_REGISTER_BLOCK_SIZE)): vol.In([DEFAULT_REGISTER_BLOCK_SIZE, LEGACY_REGISTER_BLOCK_SIZE]),
             vol.Required(CONF_CONNECTION_RETRIES, default=current_config.get(CONF_CONNECTION_RETRIES, DEFAULT_CONNECTION_RETRIES)): vol.All(int, vol.Range(min=1, max=10)),
             vol.Optional(CONF_ENABLE_DEVICE_GROUPING, default=current_config.get(CONF_ENABLE_DEVICE_GROUPING, DEFAULT_ENABLE_DEVICE_GROUPING)): bool,
+            vol.Required(CONF_BATTERY_ENTITIES, default=current_config.get(CONF_BATTERY_ENTITIES, DEFAULT_BATTERY_ENTITIES)): str,
         })
 
         return self.async_show_form(
