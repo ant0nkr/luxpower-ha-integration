@@ -15,7 +15,8 @@
           "read_only": "Read-Only Mode",
           "register_block_size": "Register Block Size",
           "connection_retries": "Connection Retry Attempts",
-          "enable_device_grouping": "Enable Device Grouping"
+          "enable_device_grouping": "Enable Device Grouping",
+          "battery_entities": "Create battery entities"
         },
         "data_description": {
           "host": "The IP address of your inverter's WiFi dongle.",
@@ -28,7 +29,8 @@
           "read_only": "If enabled, all interactive controls (switches, numbers, selects, etc.) will be replaced with read-only sensors. This allows you to monitor all settings without being able to change them.",
           "register_block_size": "Block size for register reads. Use 125 (default) for most inverters. Use 40 for older firmware that doesn't support larger reads.",
           "connection_retries": "Number of connection retry attempts before giving up (default is 3).",
-          "enable_device_grouping": "Group entities into sub-devices (PV, Grid, EPS, Generator, Battery) for better organization."
+          "enable_device_grouping": "Group entities into sub-devices (PV, Grid, EPS, Generator, Battery) for better organization.",
+          "battery_entities": "Create battery entities for the defined serial numbers separated by comma, use 'auto' to automatically create or 'none' to don't create battery entities"
         }
       }
     },
@@ -57,7 +59,9 @@
           "read_only": "Read-Only Mode",
           "register_block_size": "Register Block Size",
           "connection_retries": "Connection Retry Attempts",
-          "enable_device_grouping": "Enable Device Grouping"
+          "enable_device_grouping": "Enable Device Grouping",
+          "battery_entities": "Create battery entities",
+          "battery_entities": "Create battery entities for the defined serial numbers separated by comma, use 'auto' to automatically create or 'none' to don't create battery entities"
         },
         "data_description": {
           "host": "The IP address of your inverter's WiFi dongle.",
@@ -70,7 +74,8 @@
           "read_only": "If enabled, all interactive controls (switches, numbers, selects, etc.) will be replaced with read-only sensors. This allows you to monitor all settings without being able to change them.",
           "register_block_size": "Block size for register reads. Use 125 (default) for most inverters. Use 40 for older firmware that doesn't support larger reads.",
           "connection_retries": "Number of connection retry attempts before giving up (default is 3).",
-          "enable_device_grouping": "Group entities into sub-devices (PV, Grid, EPS, Generator, Battery) for better organization."
+          "enable_device_grouping": "Group entities into sub-devices (PV, Grid, EPS, Generator, Battery) for better organization.",
+          "battery_entities": "Create battery entities for the defined serial numbers separated by comma, use 'auto' to automatically create or leave empty to don't create"
         }
       }
     },

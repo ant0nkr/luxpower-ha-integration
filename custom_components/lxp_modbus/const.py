@@ -24,6 +24,7 @@ CONF_READ_ONLY = "read_only"
 CONF_REGISTER_BLOCK_SIZE = "register_block_size"
 CONF_CONNECTION_RETRIES = "connection_retries"
 CONF_ENABLE_DEVICE_GROUPING = "enable_device_grouping"
+CONF_BATTERY_ENTITIES = "battery_entities"
 
 INTEGRATION_TITLE = "LuxPower Inverter (Modbus)"
 
@@ -36,6 +37,7 @@ DEFAULT_PORT = 8000
 DEFAULT_REGISTER_BLOCK_SIZE = 125
 DEFAULT_CONNECTION_RETRIES = 3
 DEFAULT_ENABLE_DEVICE_GROUPING = True
+DEFAULT_BATTERY_ENTITIES = "none" # As not all batteries provide data user need to explicity enable
 
 # Legacy firmware may only support smaller block sizes
 LEGACY_REGISTER_BLOCK_SIZE = 40
@@ -48,3 +50,5 @@ PACKET_RECOVERY_TIMEOUT = 2  # Timeout for packet recovery operations
 
 RESPONSE_OVERHEAD: Final = 37 # minimum resposne length received from inverter (technical information)
 WRITE_RESPONSE_LENGTH = 76 # Based on documentation for a single write ack
+
+BATTERY_INFO_START_REGISTER = 5000 # discovered on packet capture

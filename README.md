@@ -62,6 +62,7 @@ Configuration is done entirely through the Home Assistant UI.
 | **Register Block Size** | integer | (Optional) Size of register blocks to read. Use `125` (default) for most inverters, use `40` for older firmware versions that don't support larger blocks. |
 | **Connection Retry Attempts** | integer | Number of connection retry attempts before giving up (default is 3). |
 | **Enable Device Grouping** | boolean | (v0.2.0+) Group entities into logical sub-devices for better organization (default: enabled). |
+| **Battery entities** | String | (v0.2.?+) Create individual battery entities per battery found, can be 'auto','none'(default) or specific battery serial numbers separated by comma. |
 
 > [!WARNING]
 > ### Important Note on Read-Only Mode (Available since v0.1.5)
@@ -105,6 +106,7 @@ Configuration is done entirely through the Home Assistant UI.
 > * **EPS Group** (18 entities): Emergency Power Supply / backup load outputs
 > * **Generator Group** (12 entities): Backup generator monitoring and controls
 > * **Battery Group** (62 entities): BMS data, cell voltages, temperatures, and battery controls
+> * **Battery SERIAL Group** (20 entities): per battery BMS data, cell voltages, temperatures, created when Battery Entities configured
 >
 > **Configuration Options:**
 > * **Enabled by default** for new installations - provides much better organization in Home Assistant

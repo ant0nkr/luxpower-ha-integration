@@ -27,12 +27,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     dongle_serial = entry.data[CONF_DONGLE_SERIAL]
     inverter_serial = entry.data[CONF_INVERTER_SERIAL]
     poll_interval = entry.data[CONF_POLL_INTERVAL]
+    battery_entities = entry.data.get(CONF_BATTERY_ENTITIES, DEFAULT_BATTERY_ENTITIES).replace(" ","").split(",")
+    request_battery_data = len(battery_entities) and not 'none' in battery_entities
 
     # Create a single asyncio.Lock to prevent read/write race conditions
     lock = asyncio.Lock()
     block_size = entry.data.get(CONF_REGISTER_BLOCK_SIZE, DEFAULT_REGISTER_BLOCK_SIZE)
     connection_retries = entry.data.get(CONF_CONNECTION_RETRIES, DEFAULT_CONNECTION_RETRIES)
-    api_client = LxpModbusApiClient(host, port, dongle_serial, inverter_serial, lock, block_size, connection_retries)
+    api_client = LxpModbusApiClient(host, port, dongle_serial, inverter_serial, 
+                       lock, block_size, connection_retries, request_battery_data=request_battery_data)
 
     # Create a custom DataUpdateCoordinator with reconnection logic
     class LxpModbusDataUpdateCoordinator(DataUpdateCoordinator):

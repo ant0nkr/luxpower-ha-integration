@@ -1,10 +1,11 @@
 """Base class for LuxPower Modbus entities."""
 import logging  # Add this import
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, CoordinatorEntity
+from homeassistant.helpers.entity import generate_entity_id
 from .utils import format_firmware_version
 from .const import DOMAIN, INTEGRATION_TITLE, CONF_INVERTER_SERIAL, CONF_ENABLE_DEVICE_GROUPING, DEFAULT_ENABLE_DEVICE_GROUPING
 from .constants.input_registers import I_MASTER_SLAVE_PARALLEL_STATUS
-
+ 
 _LOGGER = logging.getLogger(__name__)
 
 class ModbusBridgeEntity(CoordinatorEntity):
@@ -20,7 +21,14 @@ class ModbusBridgeEntity(CoordinatorEntity):
         self._api_client = api_client
 
         # Set common attributes
-        self._attr_name = f"{entity_prefix} {self._desc['name']}"
+        self._register_type = self._desc.get("register_type","")
+        id_name = self._desc['name'].replace(' ', '_').lower()
+        if self._register_type.startswith("battery") :
+            self._attr_name = f"{self._desc['name']}"
+            #TODO check the correct domain, but currently battery data are all from sensor domain
+            self.entity_id = generate_entity_id("sensor.{}", f"{entity_prefix}_{self._battery_serial}_{id_name}", hass=coordinator.hass)
+        else:
+            self._attr_name = f"{entity_prefix} {self._desc['name']}"
         self._attr_entity_registry_enabled_default = self._desc.get("enabled", True)
         self._attr_entity_registry_visible_default = self._desc.get("visible", True)
         
@@ -29,20 +37,29 @@ class ModbusBridgeEntity(CoordinatorEntity):
             self._attr_entity_registry_enabled_default = False
 
         # Generate unique ID based on whether it's a register-based or calculated entity
-        if self._desc.get("register_type") == "calculated":
+        if self._register_type == "calculated":
             dependencies_str = '_'.join(map(str, self._desc['depends_on']))
-            self._attr_unique_id = f"{entity_prefix}_{dependencies_str}_{self._desc['name'].replace(' ', '_').lower()}"
+            self._attr_unique_id = f"{entity_prefix}_{dependencies_str}_{id_name}"
             self._register = None
-            self._register_type = "calculated"
+        elif self._register_type == "battery_calculated":
+            dependencies_str = '_'.join(map(str, self._desc['depends_on']))
+            self._attr_unique_id = f"{entity_prefix}_batt_{self._battery_serial}_{dependencies_str}_{id_name}"
+            self._register = None
         else:
             self._register = self._desc["register"]
-            self._register_type = self._desc.get("register_type")
-            self._attr_unique_id = f"{entity_prefix}_{self._register}_{self._desc['name'].replace(' ', '_').lower()}"
+            if self._register_type == "battery":
+                # batteries can be moved between inverters, using entity preffix will not keep the history when user move a battery
+                # but this way user can have separate history of the battery when connected to each inverter
+                self._attr_unique_id = f"{entity_prefix}_batt_{self._battery_serial}_{self._register}_{id_name}"
+            else:
+                #TODO check if this is correct because same register can be on hold or input, maybe register_type should be included in unique_id
+                # but changing this will break old data history....
+                self._attr_unique_id = f"{entity_prefix}_{self._register}_{id_name}"
 
     @property
     def extra_state_attributes(self):
         """Return the state attributes."""
-        if self._register_type == "calculated":
+        if self._register_type.endswith("calculated"):
             return {"dependencies": self._desc.get("depends_on")}
         return {
             "register": self._register,

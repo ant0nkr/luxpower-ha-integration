@@ -7,7 +7,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import *
 from .entity import ModbusBridgeEntity
 # Import ALL entity description types
-from .entity_descriptions.sensor_types import SENSOR_TYPES
+from .entity_descriptions.sensor_types import SENSOR_TYPES, BATTERY_SENSOR_TYPES
 from .entity_descriptions.number_types import NUMBER_TYPES
 from .entity_descriptions.selectbox_types import SELECTBOX_TYPES
 from .entity_descriptions.switch_types import SWITCH_TYPES
@@ -21,6 +21,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     entity_prefix = hass.data[DOMAIN][entry.entry_id]['settings'].get(CONF_ENTITY_PREFIX, DEFAULT_ENTITY_PREFIX)
     api_client = hass.data[DOMAIN][entry.entry_id].get("api_client")
+    battery_entities = set(hass.data[DOMAIN][entry.entry_id]["settings"].get(CONF_BATTERY_ENTITIES, DEFAULT_BATTERY_ENTITIES).replace(" ","").split(","))
 
     # Create a list to hold all the entities we're about to create
     entities = [
@@ -43,8 +44,48 @@ async def async_setup_entry(hass, entry, async_add_entities):
         for descriptions, platform in readonly_types:
             for desc in descriptions:
                 entities.append(ModbusBridgeReadOnlySensor(coordinator, entry, desc, entity_prefix, platform))
+
+    # Inverter does not give battery data all time
+    # Because of this we should create when possible the entities at startup
+    # for some use cases this is not a problem, but if user wants the entities defined at startup 
+    # can define the serial numbers on configuration instead of auto, or user auto,SERIAL to create at startup just some of the batteries
+    known_batteries = set()
+
+    def _create_battery_sensors(serial) -> None:
+        known_batteries.add(serial)
+        battery_entities = []
+        for generic_desc in BATTERY_SENSOR_TYPES:
+            # To create a device for each battery, we have to use specific device group using the serial
+            desc = dict(generic_desc)
+            desc["device_group"] = "Battery " + serial
+
+            battery_entities.append(ModbusBridgeBatterySensor(coordinator, entry, desc, entity_prefix, api_client, serial))
+
+        _LOGGER.info(f"Creating battery {len(battery_entities)} entities for {serial}")
+        return battery_entities
     
+    def _check_for_new_batteries() -> None:
+        battery = coordinator.data.get("battery", {})
+        if len(battery):
+            for serial, value in battery.items():
+                if not serial in known_batteries:
+                    async_add_entities(_create_battery_sensors(serial))
+
+                # Until we discover all the fields keep this debug 
+                _LOGGER.debug(f"check_for_new_batteries -> battery info: {serial} {value}")
+        
+    # create entities for specific batteries
+    # this allow to keep only specific batteries if user don't want all battery data
+    for serial in battery_entities:
+        if serial not in ('auto','none'):
+           entities.extend(_create_battery_sensors(serial))
+           
     async_add_entities(entities)
+    if 'auto' in battery_entities:
+        _LOGGER.info("battery discovery enabled")
+        entry.async_on_unload(
+           coordinator.async_add_listener(_check_for_new_batteries)
+        )
 
 class ModbusBridgeSensor(ModbusBridgeEntity, SensorEntity):
     """Represents a standard sensor entity that gets its data from the coordinator."""
@@ -82,6 +123,17 @@ class ModbusBridgeSensor(ModbusBridgeEntity, SensorEntity):
             input_data = self.coordinator.data.get("input", {})
             calculation_func = self._desc["extract"]
             raw_val = calculation_func(input_data, self._entry)
+        elif self._register_type == "battery": 
+            battery_data = self.coordinator.data.get("battery", {}).get(self._battery_serial, {})
+            value = battery_data.get(self._register)
+            if value is not None:
+                # Use the 'extract' lambda to parse the value (e.g., for packed bits)
+                raw_val = self._desc["extract"](value)
+        elif self._register_type == "battery_calculated": 
+            battery_data = self.coordinator.data.get("battery", {}).get(self._battery_serial, {})
+            calculation_func = self._desc["extract"]
+            raw_val = calculation_func(battery_data, self._entry)
+            
         else:
             # For standard register-based sensors, get the value from the coordinator's data
             registers = self.coordinator.data.get(self._register_type, {})
@@ -107,6 +159,17 @@ class ModbusBridgeSensor(ModbusBridgeEntity, SensorEntity):
 
         # For any other sensor (like a code), return the raw value directly
         return raw_val
+
+class ModbusBridgeBatterySensor(ModbusBridgeSensor):
+    """Represents a Battery sensor entity that gets its data from the coordinator."""
+
+    def __init__(self, coordinator: DataUpdateCoordinator, entry, desc: dict, entity_prefix: str, api_client, battery_serial):
+        """Initialize the sensor."""
+        self._battery_serial = battery_serial
+        # Call the parent __init__ to handle all the common setup
+        super().__init__(coordinator, entry, desc, entity_prefix, api_client)
+
+
 
 class ModbusBridgeReadOnlySensor(ModbusBridgeEntity, SensorEntity):
     """A sensor that displays the read-only state of a control entity."""
