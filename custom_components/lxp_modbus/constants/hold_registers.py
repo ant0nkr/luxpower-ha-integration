@@ -295,7 +295,7 @@ H_BAT_STOP_CHARGE_VOLT = 228 # Voltage to stop charging battery (Unit: 0.1V, Ran
 # Register 229 is not defined in the Hold Register table.
 H_METER_CONFIG = 230 # Contains MetersNum, MeasureType, InstallPhase.
 H_RESET_RECORD = 231 # Bit 0: 1 to Reset the G100 lockout state.
-H_GRID_PEAK_SHAVING_POWER_1 = 232 # GridPeakShavingPower1 (Unit: W, Range: 0-65535).
+H_GRID_PEAK_SHAVING_POWER_1 = 232 # GridPeakShavingPower1 (Unit: 0.1kW, Range: 0-255).
 H_FUNCTION_ENABLE_5 = 233 # Function Enable bits:
 # Bit 0: uFunction4En.ubQuickChgStartEn
 # Bit 1: uFunction4En.ubBattBackupEn
@@ -327,7 +327,11 @@ H_FLASH_SIZE = 245 # Flash memory size (Range: 0-65535).
 H_WATTNODE_CT_AMPS_1 = 248 # WattNode CT Amps Phase 1 (Unit: A, Range: 0-65535).
 H_WATTNODE_CT_AMPS_2 = 249 # WattNode CT Amps Phase 2 (Unit: A, Range: 0-65535).
 H_WATTNODE_CT_AMPS_3 = 250 # WattNode CT Amps Phase 3 (Unit: A, Range: 0-65535).
-H_WATTNODE_CT_DIRECTIONS = 251 # WattNode CT Direction settings (Unit: bitfield, Range: 0-65535).
+H_WATTNODE_CT_DIRECTIONS = 251 # WattNode CT Direction and Frequency settings (Unit: bitfield, Range: 0-65535).
+# Bit 0: CT1 direction (0=Normal, 1=Reversed)
+# Bit 1: CT2 direction (0=Normal, 1=Reversed)
+# Bit 2: CT3 direction (0=Normal, 1=Reversed)
+# Bit 3-5: WattNode_UpdateFrequency (0=1S, 1=5S, 2=20S, 3=60S, 4=100ms, 5=200ms, 6=500ms)
 
 # Advanced Limits & Hysteresis
 H_NEC_120_BUS_BAR_LIMIT = 252 # NEC 120% Bus Bar Limit (Unit: W, Range: 0-65535).

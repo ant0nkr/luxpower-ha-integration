@@ -123,6 +123,19 @@ I_MASTER_SLAVE_PARALLEL_STATUS = 113
 I_SWITCH_STATE = 174 # DIP switch status and other flags (Unit: bitfield, Range: 0-65535).
 # Bit 0-4: SafetySw (Status of 5-digit safety DIP switch)
 
+# --- Three-Phase Diagnostic Registers ---
+I_EXCEPTION_REASON_1 = 176 # ExceptionReason1: 3-phase exit reasons (Unit: bitfield, Range: 0-65535).
+# Bit 0-3: PVGridOn Exit Reason
+# Bit 4-7: PVChgGridOn Exit Reason
+# Bit 8-11: BatGridOn Exit Reason
+# Bit 12-15: PVBatGridOn Exit Reason
+I_EXCEPTION_REASON_2 = 177 # ExceptionReason2: 3-phase exit reasons (Unit: bitfield, Range: 0-65535).
+# Bit 0-3: PVCharge Exit Reason
+# Bit 4-7: ACCharge Exit Reason
+# Bit 8-11: EPS Exit Reason
+# Bit 12-15: Charge/Discharge Exit Reason
+I_CHG_DISCHG_DISABLE_REASON = 178 # ChgDischgDisableReason: charge/discharge disable reason bits (Unit: bitfield).
+
 # --- BMS Information ---
 # --- BMS Information ---
 I_BAT_TYPE_AND_BRAND = 80 # Battery type and brand. See model definition file.
@@ -163,6 +176,8 @@ I_PTOGRID_S = 184 # User on-grid power of S-phase (Unit: W).
 I_PTOGRID_T = 185 # User on-grid power of T-phase (Unit: W).
 I_PTOUSER_S = 186 # Grid supply power of S-phase (Unit: W).
 I_PTOUSER_T = 187 # Grid supply power of T-phase (Unit: W).
+I_GEN_POWER_S = 188 # Generator power S-phase (Unit: W).
+I_GEN_POWER_T = 189 # Generator power T-phase (Unit: W).
 I_IINV_RMS_S = 190 # RMS current of S-phase (Unit: 0.01A).
 I_IINV_RMS_T = 191 # RMS current of T-phase (Unit: 0.01A).
 I_PF_S = 192 # Power factor of S-phase (Unit: 0.001).
@@ -216,8 +231,12 @@ I_PLOAD = 170 # Load consumption when working in on-grid mode (Unit: W).
 I_AC_COUPLE_POWER_S = 206 # AC Couple Power S-phase (Unit: W, Range: -32768-32767).
 I_AC_COUPLE_POWER_T = 207 # AC Couple Power T-phase (Unit: W, Range: -32768-32767).
 
+# Three-Phase On-Grid Load Power (Trip6-20k models)
+I_ONGRID_LOAD_POWER_S = 208 # On-grid load power S-phase (Unit: W).
+I_ONGRID_LOAD_POWER_T = 209 # On-grid load power T-phase (Unit: W).
+
 # One-Click Charging
-I_REMAINING_CHARGE_TIME = 210 # Remaining charge time for one-click charging (Unit: min, Range: 0-65535).
+I_REMAINING_CHARGE_TIME = 210 # Remaining time for one-click charging (Unit: s, Range: 0-65535).
 
 # Additional Temperature Sensors
 I_TEMP_NTC_FOR_INDC = 214 # NTC temperature for INDC (Unit: °C, Range: -40-125).

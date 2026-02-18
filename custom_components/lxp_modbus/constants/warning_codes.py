@@ -9,6 +9,7 @@ WARNING_CODES = {
     7: "LCD communication failure",
     8: "Software version mismatch",
     9: "Fan is stuck",
+    10: "Grid overload",
     11: "Number of parallel secondaries exceeds limit",
     12: "Battery reverse MOS abnormal",
     13: "Radiator temperature out of range",

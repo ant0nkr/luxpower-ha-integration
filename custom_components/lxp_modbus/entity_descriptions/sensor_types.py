@@ -2026,7 +2026,7 @@ SENSOR_TYPES = [
         "enabled": True,
         "visible": True,
         "extract": lambda registers, entry: get_highest_set_bit(
-            (registers.get(I_WARNING_CODE_L, 0) << 16) | registers.get(I_WARNING_CODE_H, 0)
+            (registers.get(I_WARNING_CODE_H, 0) << 16) | registers.get(I_WARNING_CODE_L, 0)
         ),
         "master_only": False,
     },
