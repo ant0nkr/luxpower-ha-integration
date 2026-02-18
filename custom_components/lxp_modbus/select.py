@@ -3,7 +3,7 @@ import logging
 from homeassistant.components.select import SelectEntity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import *
+from .const import DOMAIN, CONF_ENTITY_PREFIX, DEFAULT_ENTITY_PREFIX
 from .entity import ModbusBridgeEntity
 from .entity_descriptions.selectbox_types import SELECTBOX_TYPES
 

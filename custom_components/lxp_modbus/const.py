@@ -28,7 +28,7 @@ CONF_ENABLE_DEVICE_GROUPING = "enable_device_grouping"
 INTEGRATION_TITLE = "LuxPower Inverter (Modbus)"
 
 
-DEFAULT_POLL_INTERVAL = 60  # or whatever default you prefer, in seconds
+DEFAULT_POLL_INTERVAL = 60  # seconds
 DEFAULT_ENTITY_PREFIX = ""
 DEFAULT_RATED_POWER = 5000
 DEFAULT_READ_ONLY = False
@@ -46,5 +46,18 @@ MAX_PACKET_RECOVERY_ATTEMPTS = 3
 MAX_PACKET_SIZE = 1024  # Maximum reasonable packet size in bytes
 PACKET_RECOVERY_TIMEOUT = 2  # Timeout for packet recovery operations
 
-RESPONSE_OVERHEAD: Final = 37 # minimum resposne length received from inverter (technical information)
-WRITE_RESPONSE_LENGTH = 76 # Based on documentation for a single write ack
+RESPONSE_OVERHEAD: Final = 37  # Minimum response length from inverter (protocol overhead)
+WRITE_RESPONSE_LENGTH = 76  # Based on documentation for a single write ack
+
+# Communication timeouts (seconds)
+READ_TIMEOUT = 3
+WRITE_RETRY_DELAY = 1
+INITIAL_RETRY_DELAY = 30
+RETRY_BACKOFF_MULTIPLIER = 1.5
+
+# Failure thresholds for cached/empty data fallback
+MAX_CACHED_DATA_FAILURES = 5
+MAX_EMPTY_DATA_FAILURES = 3
+
+# Serial number validation
+SERIAL_LENGTH = 10

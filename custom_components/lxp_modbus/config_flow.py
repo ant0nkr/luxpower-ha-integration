@@ -1,22 +1,42 @@
-import asyncio
 import logging
 import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.core import callback
 
-from .const import *
-from .classes.lxp_request_builder import LxpRequestBuilder
-from .classes.lxp_response import LxpResponse
-from .utils import decode_model_from_registers
+from .const import (
+    DOMAIN,
+    CONF_HOST,
+    CONF_PORT,
+    CONF_DONGLE_SERIAL,
+    CONF_INVERTER_SERIAL,
+    CONF_POLL_INTERVAL,
+    CONF_ENTITY_PREFIX,
+    CONF_RATED_POWER,
+    CONF_READ_ONLY,
+    CONF_REGISTER_BLOCK_SIZE,
+    CONF_CONNECTION_RETRIES,
+    CONF_ENABLE_DEVICE_GROUPING,
+    DEFAULT_POLL_INTERVAL,
+    DEFAULT_ENTITY_PREFIX,
+    DEFAULT_RATED_POWER,
+    DEFAULT_READ_ONLY,
+    DEFAULT_REGISTER_BLOCK_SIZE,
+    DEFAULT_CONNECTION_RETRIES,
+    DEFAULT_ENABLE_DEVICE_GROUPING,
+    LEGACY_REGISTER_BLOCK_SIZE,
+    SERIAL_LENGTH,
+)
+from .classes.inverter_discovery import get_inverter_model_from_device
 
 _LOGGER = logging.getLogger(__name__)
 
+
 def validate_serial(value):
-    """Validate that the serial number is exactly 10 characters."""
+    """Validate that the serial number is exactly SERIAL_LENGTH characters."""
     value = str(value)
-    if len(value) != 10:
-        raise vol.Invalid("Serial number must be exactly 10 characters.")
+    if len(value) != SERIAL_LENGTH:
+        raise vol.Invalid(f"Serial number must be exactly {SERIAL_LENGTH} characters.")
     return value
 
 def validate_connection_retries(value):
@@ -25,24 +45,6 @@ def validate_connection_retries(value):
     if value < 1 or value > 10:
         raise vol.Invalid("Connection retry attempts must be between 1 and 10.")
     return value
-
-async def get_inverter_model_from_device(host, port, dongle_serial, inverter_serial):
-    """Attempt to connect to the inverter and read the model."""
-    try:
-        reader, writer = await asyncio.open_connection(host, port)
-        req = LxpRequestBuilder.prepare_packet_for_read(dongle_serial.encode(), inverter_serial.encode(), 7, 2, 3)
-        writer.write(req)
-        await writer.drain()
-        response_buf = await reader.read(512)
-        writer.close()
-        await writer.wait_closed()
-        if not response_buf: return None
-        response = LxpResponse(response_buf)
-        if response.packet_error: return None
-        model = decode_model_from_registers(response.parsed_values_dictionary)
-        return model
-    except Exception:
-        return None
 
 class LxpModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle the initial setup flow for the component."""
@@ -92,7 +94,6 @@ class LxpModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         })
         return self.async_show_form(step_id="user", data_schema=self.add_suggested_values_to_schema(data_schema, user_input), errors=errors)
 
-# This class now explicitly defines __init__ to resolve the error.
 class LxpModbusOptionsFlow(config_entries.OptionsFlow):
     """Handle an options flow (reconfiguration) for the component."""
 

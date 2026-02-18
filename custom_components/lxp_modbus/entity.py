@@ -1,5 +1,5 @@
 """Base class for LuxPower Modbus entities."""
-import logging  # Add this import
+import logging
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, CoordinatorEntity
 from .utils import format_firmware_version
 from .const import DOMAIN, INTEGRATION_TITLE, CONF_INVERTER_SERIAL, CONF_ENABLE_DEVICE_GROUPING, DEFAULT_ENABLE_DEVICE_GROUPING

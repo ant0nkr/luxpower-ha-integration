@@ -4,7 +4,7 @@ from datetime import time as dt_time
 from homeassistant.components.time import TimeEntity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import *
+from .const import DOMAIN, CONF_ENTITY_PREFIX, DEFAULT_ENTITY_PREFIX
 from .entity import ModbusBridgeEntity
 from .entity_descriptions.time_types import TIME_TYPES
 

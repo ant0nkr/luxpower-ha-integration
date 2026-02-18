@@ -3,7 +3,7 @@ import logging
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import *
+from .const import DOMAIN, CONF_ENTITY_PREFIX, DEFAULT_ENTITY_PREFIX
 from .entity import ModbusBridgeEntity
 from .entity_descriptions.number_types import NUMBER_TYPES
 
@@ -54,7 +54,7 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
             return None
             
         # Apply extract function if defined (for handling signed values, bit extraction, etc.)
-        if hasattr(self, '_extract_fn') and self._extract_fn:
+        if self._extract_fn:
             register_value = self._extract_fn(register_value)
             
         # Scale the raw register value for display in the UI
@@ -69,7 +69,7 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
         value_to_write = int(value * self._multiplier)
 
         # Apply compose function if defined (for handling signed values, bit manipulation, etc.)
-        if hasattr(self, '_compose_fn') and self._compose_fn:
+        if self._compose_fn:
             # Get current register value for compose function
             current_value = self.coordinator.data.get(self._register_type, {}).get(self._register, 0)
             value_to_write = self._compose_fn(current_value, value_to_write)

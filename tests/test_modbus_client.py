@@ -12,7 +12,8 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from custom_components.lxp_modbus.classes.modbus_client import LxpModbusApiClient, _is_data_sane, HOLD_TIME_REGISTERS
+from custom_components.lxp_modbus.classes.modbus_client import LxpModbusApiClient, HOLD_TIME_REGISTERS
+from custom_components.lxp_modbus.classes.data_validator import is_data_sane
 from custom_components.lxp_modbus.classes.lxp_response import LxpResponse
 from custom_components.lxp_modbus.classes.lxp_request_builder import LxpRequestBuilder
 from custom_components.lxp_modbus.const import (
@@ -78,20 +79,20 @@ class TestLxpModbusApiClient:
             lock=mock_lock
         )
         
-        assert client._host == "192.168.1.100"
-        assert client._port == 8000
+        assert client._connection_manager.host == "192.168.1.100"
+        assert client._connection_manager.port == 8000
         assert client._dongle_serial == "DG44302247"
         assert client._inverter_serial == "4434280298"
         assert client._lock == mock_lock
         assert client._block_size == 125
         assert client._connection_retries == DEFAULT_CONNECTION_RETRIES
-        assert client._skip_initial_data is True
         assert client._last_good_input_regs == {}
         assert client._last_good_hold_regs == {}
         assert client._connection_retry_count == 0
-        assert client._recovery_attempts_total == 0
-        assert client._recovery_successes == 0
-        assert client._recovery_failures == 0
+        stats = client.get_recovery_stats()
+        assert stats["total_recovery_attempts"] == 0
+        assert stats["successful_recoveries"] == 0
+        assert stats["failed_recoveries"] == 0
 
     def test_init_with_custom_params(self, mock_lock):
         """Test client initialization with custom parameters."""
@@ -106,13 +107,12 @@ class TestLxpModbusApiClient:
             skip_initial_data=False
         )
         
-        assert client._host == "10.0.0.1"
-        assert client._port == 9000
+        assert client._connection_manager.host == "10.0.0.1"
+        assert client._connection_manager.port == 9000
         assert client._dongle_serial == "CUSTOM1234"
         assert client._inverter_serial == "INVERTER1"
         assert client._block_size == 40
         assert client._connection_retries == 5
-        assert client._skip_initial_data is False
 
     def test_get_recovery_stats_initial(self, client):
         """Test recovery statistics when no recoveries have been attempted."""
@@ -125,9 +125,9 @@ class TestLxpModbusApiClient:
 
     def test_get_recovery_stats_with_data(self, client):
         """Test recovery statistics with some data."""
-        client._recovery_attempts_total = 10
-        client._recovery_successes = 7
-        client._recovery_failures = 3
+        client._packet_recovery._recovery_attempts_total = 10
+        client._packet_recovery._recovery_successes = 7
+        client._packet_recovery._recovery_failures = 3
         
         stats = client.get_recovery_stats()
         
@@ -139,36 +139,36 @@ class TestLxpModbusApiClient:
     @pytest.mark.asyncio
     async def test_async_discard_initial_data_skip_disabled(self, client):
         """Test discard initial data when skip is disabled."""
-        client._skip_initial_data = False
+        client._connection_manager._skip_initial_data = False
         reader = AsyncMock()
-        
+
         await client.async_discard_initial_data(reader)
-        
+
         # Should not read anything when skip is disabled
         reader.read.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_async_discard_initial_data_skip_enabled(self, client):
         """Test discard initial data when skip is enabled."""
-        client._skip_initial_data = True
+        client._connection_manager._skip_initial_data = True
         reader = AsyncMock()
         reader.read.return_value = b"some_initial_data"
-        
+
         await client.async_discard_initial_data(reader)
-        
+
         # Should attempt to read initial data
         reader.read.assert_called_once_with(300)
 
     @pytest.mark.asyncio
     async def test_async_discard_initial_data_timeout(self, client):
-        """Test discard initial data with timeout."""
-        client._skip_initial_data = True
+        """Test discard initial data when timeout occurs."""
+        client._connection_manager._skip_initial_data = True
         reader = AsyncMock()
         reader.read.side_effect = asyncio.TimeoutError()
-        
+
         # Should not raise exception on timeout
         await client.async_discard_initial_data(reader)
-        
+
         reader.read.assert_called_once_with(300)
 
     @pytest.mark.asyncio
@@ -187,8 +187,8 @@ class TestLxpModbusApiClient:
             mock_response.parsed_values_dictionary = {0: 100, 1: 200, 2: 300}
             mock_response_class.return_value = mock_response
             
-            # Mock the _is_data_sane function to return True
-            with patch('custom_components.lxp_modbus.classes.modbus_client._is_data_sane', return_value=True):
+            # Mock the is_data_sane function to return True
+            with patch('custom_components.lxp_modbus.classes.modbus_client.is_data_sane', return_value=True):
                 result = await client.async_request_registers(writer, reader, 0, "input", 4)
                 
                 writer.write.assert_called_once()
@@ -266,7 +266,7 @@ class TestLxpModbusApiClient:
         # The recovery will only increment if the original response has packet_error=True and needs more bytes
         response = LxpResponse(malformed_packet)
         if response.packet_error and response.packet_length_calced > 18:
-            assert client._recovery_attempts_total > 0
+            assert client._packet_recovery._recovery_attempts_total > 0
 
     @pytest.mark.asyncio
     async def test_async_safe_packet_recovery_timeout(self, client, mock_reader_writer):
@@ -285,7 +285,7 @@ class TestLxpModbusApiClient:
         # Check if recovery was attempted based on packet conditions
         response = LxpResponse(malformed_packet)
         if response.packet_error and response.packet_length_calced > 18:
-            assert client._recovery_failures > 0
+            assert client._packet_recovery._recovery_failures > 0
 
     @pytest.mark.asyncio
     async def test_async_get_data_connection_success(self, client, mock_reader_writer, sample_input_response, sample_hold_response):
@@ -431,7 +431,7 @@ class TestLxpModbusApiClient:
 
 
 class TestDataSanityFunction:
-    """Test cases for the _is_data_sane function."""
+    """Test cases for the is_data_sane function."""
 
     def test_is_data_sane_valid_time_values(self):
         """Test data sanity check with valid time values."""
@@ -441,7 +441,7 @@ class TestDataSanityFunction:
             100: 12345  # Non-time register
         }
         
-        assert _is_data_sane(registers, "hold") is True
+        assert is_data_sane(registers, "hold") is True
 
     def test_is_data_sane_invalid_hour(self):
         """Test data sanity check with invalid hour."""
@@ -449,7 +449,7 @@ class TestDataSanityFunction:
             H_AC_CHARGE_START_TIME: 0x0A18,  # 24:10 (Hour=24, invalid)
         }
         
-        assert _is_data_sane(registers, "hold") is False
+        assert is_data_sane(registers, "hold") is False
 
     def test_is_data_sane_invalid_minute(self):
         """Test data sanity check with invalid minute."""
@@ -457,7 +457,7 @@ class TestDataSanityFunction:
             H_AC_CHARGE_START_TIME: 0x3C08,  # 8:60 (Minute=60, invalid)
         }
         
-        assert _is_data_sane(registers, "hold") is False
+        assert is_data_sane(registers, "hold") is False
 
     def test_is_data_sane_edge_cases(self):
         """Test data sanity check with edge case values."""
@@ -466,7 +466,7 @@ class TestDataSanityFunction:
             H_AC_CHARGE_END_TIME: 0x0000,    # 0:00 (valid edge case)
         }
         
-        assert _is_data_sane(registers, "hold") is True
+        assert is_data_sane(registers, "hold") is True
 
     def test_is_data_sane_non_time_registers(self):
         """Test data sanity check with non-time registers only."""
@@ -476,7 +476,7 @@ class TestDataSanityFunction:
             300: 0xFFFF
         }
         
-        assert _is_data_sane(registers, "hold") is True
+        assert is_data_sane(registers, "hold") is True
 
     def test_is_data_sane_input_registers(self):
         """Test data sanity check with input registers (no time registers)."""
@@ -485,13 +485,13 @@ class TestDataSanityFunction:
             200: 67890
         }
         
-        assert _is_data_sane(registers, "input") is True
+        assert is_data_sane(registers, "input") is True
 
     def test_is_data_sane_empty_registers(self):
         """Test data sanity check with empty register dict."""
         registers = {}
         
-        assert _is_data_sane(registers, "hold") is True
+        assert is_data_sane(registers, "hold") is True
 
 
 if __name__ == "__main__":

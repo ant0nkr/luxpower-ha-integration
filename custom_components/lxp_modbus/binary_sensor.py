@@ -3,7 +3,7 @@ import logging
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import *
+from .const import DOMAIN, CONF_ENTITY_PREFIX, DEFAULT_ENTITY_PREFIX
 from .entity import ModbusBridgeEntity
 from .entity_descriptions.binary_sensor_types import BINARY_SENSOR_TYPES
 

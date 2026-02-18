@@ -4,9 +4,16 @@ from datetime import time as dt_time
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import *
+from homeassistant.const import Platform
+
+from .const import (
+    DOMAIN,
+    CONF_READ_ONLY,
+    CONF_ENTITY_PREFIX,
+    DEFAULT_READ_ONLY,
+    DEFAULT_ENTITY_PREFIX,
+)
 from .entity import ModbusBridgeEntity
-# Import ALL entity description types
 from .entity_descriptions.sensor_types import SENSOR_TYPES
 from .entity_descriptions.number_types import NUMBER_TYPES
 from .entity_descriptions.selectbox_types import SELECTBOX_TYPES
@@ -108,45 +115,61 @@ class ModbusBridgeSensor(ModbusBridgeEntity, SensorEntity):
         # For any other sensor (like a code), return the raw value directly
         return raw_val
 
+def _render_number_value(register_value, desc):
+    """Render a number entity value for read-only display."""
+    multiplier = desc.get("multiplier", 1)
+    scaled_value = register_value / multiplier
+    return int(scaled_value) if scaled_value == int(scaled_value) else scaled_value
+
+def _render_switch_value(register_value, desc):
+    """Render a switch entity value for read-only display."""
+    is_on = bool(desc["extract"](register_value))
+    return "On" if is_on else "Off"
+
+def _render_select_value(register_value, desc):
+    """Render a select entity value for read-only display."""
+    index = desc["extract"](register_value)
+    return desc["options"].get(index)
+
+def _render_time_value(register_value, desc):
+    """Render a time entity value for read-only display."""
+    hour, minute = desc["extract"](register_value)
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        return None
+    return dt_time(hour=hour, minute=minute).strftime("%H:%M:%S")
+
+# Strategy map: platform type -> renderer function (Open/Closed Principle)
+_READONLY_RENDERERS = {
+    Platform.NUMBER: _render_number_value,
+    Platform.SWITCH: _render_switch_value,
+    Platform.SELECT: _render_select_value,
+    Platform.TIME: _render_time_value,
+}
+
+
 class ModbusBridgeReadOnlySensor(ModbusBridgeEntity, SensorEntity):
-    """A sensor that displays the read-only state of a control entity."""
+    """A sensor that displays the read-only state of a control entity.
+
+    Note: api_client is passed as None since this entity never writes to the inverter.
+    """
 
     def __init__(self, coordinator: DataUpdateCoordinator, entry, desc: dict, entity_prefix: str, platform: Platform):
         """Initialize the read-only sensor."""
-        # Pass None for api_client as this entity is read-only
-        super().__init__(coordinator, entry, desc, entity_prefix, None) 
-        self._platform = platform # Store the original platform (number, switch, etc.)
+        super().__init__(coordinator, entry, desc, entity_prefix, None)
+        self._platform = platform
         self._attr_icon = self._desc.get("icon")
-        # Add a suffix to the unique_id to prevent clashes with the real entity
         self._attr_unique_id = f"{super().unique_id}_readonly"
 
     @property
     def native_value(self):
         """Return the state of the sensor, formatted correctly for its original type."""
         register_value = self.coordinator.data.get(self._register_type, {}).get(self._register)
-        if register_value is None: 
+        if register_value is None:
             return None
 
-        # Determine how to display the value based on its original platform type
-        if self._platform == Platform.NUMBER:
-            multiplier = self._desc.get("multiplier", 1)
-            scaled_value = register_value / multiplier
-            return int(scaled_value) if scaled_value == int(scaled_value) else scaled_value
-        
-        elif self._platform == Platform.SWITCH:
-            is_on = bool(self._desc["extract"](register_value))
-            return "On" if is_on else "Off"
-
-        elif self._platform == Platform.SELECT:
-            index = self._desc["extract"](register_value)
-            return self._desc["options"].get(index)
-
-        elif self._platform == Platform.TIME:
-            hour, minute = self._desc["extract"](register_value)
-            if not (0 <= hour <= 23 and 0 <= minute <= 59): 
-                return None
-            return dt_time(hour=hour, minute=minute).strftime("%H:%M:%S")
-
+        renderer = _READONLY_RENDERERS.get(self._platform)
+        if renderer:
+            return renderer(register_value, self._desc)
         return register_value
 
     @property
