@@ -25,4 +25,26 @@ BUTTON_TYPES = [
         "master_only": False,
         "device_group": "Grid",
     },
+    {
+        "name": "Clear Parallel Alarm",
+        "register": H_CLEAR_FUNCTION,
+        "register_type": "hold",
+        "icon": "mdi:alert-remove",
+        "press": lambda orig: 1,
+        "enabled": True,
+        "visible": True,
+        "master_only": True,
+    },
+    {
+        "name": "Reset G100 Lockout",
+        "register": H_RESET_RECORD,
+        "register_type": "hold",
+        "icon": "mdi:lock-reset",
+        "press": lambda orig: set_bits(orig, 0, 1, 1),
+        "enabled": False,
+        "visible": True,
+        "master_only": True,
+        "device_group": "Grid",
+    },
+
 ]
