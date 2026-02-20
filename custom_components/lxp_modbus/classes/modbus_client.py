@@ -6,6 +6,7 @@ import time as time_lib
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from ..const import (
+    BATTERY_INFO_START_REGISTER,
     DEFAULT_CONNECTION_RETRIES,
     INITIAL_RETRY_DELAY,
     MAX_CACHED_DATA_FAILURES,
@@ -17,8 +18,10 @@ from ..const import (
     WRITE_RESPONSE_LENGTH,
     WRITE_RETRY_DELAY,
 )
+from ..constants.input_registers import I_BAT_PARALLEL_NUM
 from .connection_manager import ModbusConnectionManager
 from .data_validator import is_data_sane
+from .lxp_batteries import LxpBatteries
 from .lxp_request_builder import LxpRequestBuilder
 from .lxp_response import LxpResponse
 from .packet_recovery import PacketRecoveryHandler
@@ -40,15 +43,17 @@ class LxpModbusApiClient:
 
     def __init__(self, host: str, port: int, dongle_serial: str, inverter_serial: str, lock: asyncio.Lock,
                  block_size: int = 125, connection_retries: int = DEFAULT_CONNECTION_RETRIES,
-                 skip_initial_data: bool = True):
+                 skip_initial_data: bool = True, request_battery_data: bool = False):
         """Initialize the API client."""
         self._dongle_serial = dongle_serial
         self._inverter_serial = inverter_serial
         self._lock = lock
         self._block_size = block_size
         self._connection_retries = connection_retries
+        self._request_battery_data = request_battery_data
         self._last_good_input_regs = {}
         self._last_good_hold_regs = {}
+        self._last_good_battery_data = {}
         self._connection_retry_count = 0
         self._last_successful_connection = None
         self._connection_failure_count = 0
@@ -111,6 +116,12 @@ class LxpModbusApiClient:
                     _LOGGER.debug("%s(%s) response has different register count (%s) than requested (%s)",
                                   request_type, function_code, len(response.parsed_values_dictionary), count)
 
+                # Battery data needs special decoding — returns dict keyed by serial
+                if response.register == BATTERY_INFO_START_REGISTER:
+                    bat_dict = LxpBatteries(response).get_battery_info()
+                    _LOGGER.debug("Battery data decoded: %s", list(bat_dict.keys()))
+                    return bat_dict
+
                 return response.parsed_values_dictionary
             else:
                 _LOGGER.debug("ignoring %s(%s) packet for regs %s-%s : response=%s",
@@ -166,6 +177,7 @@ class LxpModbusApiClient:
 
                 newly_polled_input_regs = {}
                 newly_polled_hold_regs = {}
+                newly_polled_battery_data = {}
 
                 await self._connection_manager.async_discard_initial_data(reader)
 
@@ -175,6 +187,19 @@ class LxpModbusApiClient:
                         reg_block = await self.async_request_registers(writer, reader, reg, "input", 4)
                         if len(reg_block) > 0:
                             newly_polled_input_regs.update(reg_block)
+
+                    # Poll battery data if enabled and inverter reports connected batteries
+                    # The decoding routine needs 120 registers for complete block processing
+                    if (self._request_battery_data
+                            and I_BAT_PARALLEL_NUM in newly_polled_input_regs
+                            and newly_polled_input_regs[I_BAT_PARALLEL_NUM] > 0
+                            and self._block_size >= 120):
+                        for reg in range(BATTERY_INFO_START_REGISTER,
+                                         BATTERY_INFO_START_REGISTER + 120,
+                                         self._block_size):
+                            bat_block = await self.async_request_registers(
+                                writer, reader, reg, "input/bat", 4)
+                            newly_polled_battery_data.update(bat_block)
 
                     # Poll HOLD registers (expecting function code 3)
                     for reg in range(0, TOTAL_REGISTERS, self._block_size):
@@ -192,11 +217,14 @@ class LxpModbusApiClient:
             if len(newly_polled_input_regs):
                 self._last_good_input_regs.update(newly_polled_input_regs)
 
+            if len(newly_polled_battery_data):
+                self._last_good_battery_data.update(newly_polled_battery_data)
+
             if len(newly_polled_hold_regs):
                 self._last_good_hold_regs.update(newly_polled_hold_regs)
 
             # Always return a complete (though possibly stale) dataset
-            return {"input": self._last_good_input_regs, "hold": self._last_good_hold_regs}
+            return {"input": self._last_good_input_regs, "hold": self._last_good_hold_regs, "battery": self._last_good_battery_data}
 
         except Exception as ex:
             self._connection_failure_count += 1
@@ -212,11 +240,11 @@ class LxpModbusApiClient:
 
             if self._last_good_input_regs and self._last_good_hold_regs and self._connection_failure_count <= MAX_CACHED_DATA_FAILURES:
                 _LOGGER.warning("Returning cached data due to temporary connection failure")
-                return {"input": self._last_good_input_regs, "hold": self._last_good_hold_regs}
+                return {"input": self._last_good_input_regs, "hold": self._last_good_hold_regs, "battery": self._last_good_battery_data}
             else:
                 if self._connection_failure_count <= MAX_EMPTY_DATA_FAILURES:
                     _LOGGER.warning("No cached data available, returning empty data structure")
-                    return {"input": {}, "hold": {}}
+                    return {"input": {}, "hold": {}, "battery": {}}
                 else:
                     raise UpdateFailed(f"Error communicating with inverter: {ex}")
 

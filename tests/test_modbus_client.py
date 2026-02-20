@@ -88,6 +88,7 @@ class TestLxpModbusApiClient:
         assert client._connection_retries == DEFAULT_CONNECTION_RETRIES
         assert client._last_good_input_regs == {}
         assert client._last_good_hold_regs == {}
+        assert client._last_good_battery_data == {}
         assert client._connection_retry_count == 0
         stats = client.get_recovery_stats()
         assert stats["total_recovery_attempts"] == 0
@@ -298,11 +299,13 @@ class TestLxpModbusApiClient:
             reader.read.side_effect = [sample_input_response, sample_hold_response] * (TOTAL_REGISTERS // client._block_size + 1)
             
             result = await client.async_get_data()
-            
+
             assert "input" in result
             assert "hold" in result
+            assert "battery" in result
             assert isinstance(result["input"], dict)
             assert isinstance(result["hold"], dict)
+            assert isinstance(result["battery"], dict)
 
     @pytest.mark.asyncio
     async def test_async_get_data_connection_failure(self, client):
@@ -313,7 +316,7 @@ class TestLxpModbusApiClient:
             # Should raise UpdateFailed after enough failures without cached data
             result = await client.async_get_data()
             # The method returns empty data structure for the first few failures
-            assert result == {"input": {}, "hold": {}}
+            assert result == {"input": {}, "hold": {}, "battery": {}}
             
             # After enough failures, it should raise UpdateFailed
             client._connection_failure_count = 10  # Simulate many failures
@@ -326,14 +329,16 @@ class TestLxpModbusApiClient:
         # Set up some cached data
         client._last_good_input_regs = {0: 100, 1: 200}
         client._last_good_hold_regs = {0: 300, 1: 400}
-        
+        client._last_good_battery_data = {}
+
         # Mock connection failure
         with patch('asyncio.open_connection', side_effect=ConnectionRefusedError("Connection refused")):
             result = await client.async_get_data()
-            
+
             # Should return cached data for first few failures
             assert result["input"] == {0: 100, 1: 200}
             assert result["hold"] == {0: 300, 1: 400}
+            assert result["battery"] == {}
 
     @pytest.mark.asyncio
     async def test_async_get_data_connection_retry(self, client, mock_reader_writer, sample_input_response):
@@ -347,9 +352,10 @@ class TestLxpModbusApiClient:
             reader.read.return_value = sample_input_response
             
             result = await client.async_get_data()
-            
+
             assert "input" in result
             assert "hold" in result
+            assert "battery" in result
             assert client._connection_retry_count > 0
 
     @pytest.mark.asyncio

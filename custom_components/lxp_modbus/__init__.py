@@ -17,9 +17,11 @@ from .const import (
     CONF_READ_ONLY,
     CONF_REGISTER_BLOCK_SIZE,
     CONF_CONNECTION_RETRIES,
+    CONF_BATTERY_ENTITIES,
     DEFAULT_READ_ONLY,
     DEFAULT_REGISTER_BLOCK_SIZE,
     DEFAULT_CONNECTION_RETRIES,
+    DEFAULT_BATTERY_ENTITIES,
 )
 from .classes.modbus_client import LxpModbusApiClient
 from .coordinator import LxpModbusDataUpdateCoordinator
@@ -38,11 +40,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     inverter_serial = entry.data[CONF_INVERTER_SERIAL]
     poll_interval = entry.data[CONF_POLL_INTERVAL]
 
+    # Determine if battery data should be requested
+    battery_entities = entry.data.get(CONF_BATTERY_ENTITIES, DEFAULT_BATTERY_ENTITIES).replace(" ", "").split(",")
+    request_battery_data = bool(battery_entities) and 'none' not in battery_entities
+
     # Create a single asyncio.Lock to prevent read/write race conditions
     lock = asyncio.Lock()
     block_size = entry.data.get(CONF_REGISTER_BLOCK_SIZE, DEFAULT_REGISTER_BLOCK_SIZE)
     connection_retries = entry.data.get(CONF_CONNECTION_RETRIES, DEFAULT_CONNECTION_RETRIES)
-    api_client = LxpModbusApiClient(host, port, dongle_serial, inverter_serial, lock, block_size, connection_retries)
+    api_client = LxpModbusApiClient(
+        host, port, dongle_serial, inverter_serial, lock, block_size, connection_retries,
+        request_battery_data=request_battery_data
+    )
 
     # Create our custom coordinator
     coordinator = LxpModbusDataUpdateCoordinator(
