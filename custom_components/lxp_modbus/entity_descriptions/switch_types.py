@@ -292,7 +292,7 @@ SWITCH_TYPES = [
         "compose": lambda orig, value: set_bits(orig, 3, 1, value),
         "icon": "mdi:calendar-check",
         "device_class": "switch",
-        "enabled": False,
+        "enabled": True,
         "visible": True,
         "master_only": True,
         "device_group": "Schedules",

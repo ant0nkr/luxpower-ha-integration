@@ -41,7 +41,7 @@ BUTTON_TYPES = [
         "register_type": "hold",
         "icon": "mdi:lock-reset",
         "press": lambda orig: set_bits(orig, 0, 1, 1),
-        "enabled": False,
+        "enabled": True,
         "visible": True,
         "master_only": True,
         "device_group": "Grid",
