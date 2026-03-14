@@ -182,6 +182,25 @@ SENSOR_TYPES = [
         "device_group": "PV",
     },
     {
+        "name": "PV1 Current",
+        "register_type": "calculated",
+        "depends_on": [I_PPV1, I_VPV1],
+        "extract": lambda registers, entry: (
+            round(registers.get(I_PPV1, 0) / (registers.get(I_VPV1, 0) * 0.1), 2)
+            if registers.get(I_VPV1, 0) > 0 else 0
+        ),
+        "unit": "A",
+        "device_class": "current",
+        "state_class": "measurement",
+        "scale": 1.0,
+        "icon": "mdi:solar-power",
+        "suggested_display_precision": 2,
+        "enabled": True,
+        "visible": True,
+        "master_only": False,
+        "device_group": "PV",
+    },
+    {
         "name": "PV2 Voltage",
         "register": I_VPV2,
         "register_type": "input",
@@ -208,6 +227,25 @@ SENSOR_TYPES = [
         "scale": 1.0,
         "icon": "mdi:solar-power",
         "suggested_display_precision": 0,
+        "enabled": True,
+        "visible": True,
+        "master_only": False,
+        "device_group": "PV",
+    },
+    {
+        "name": "PV2 Current",
+        "register_type": "calculated",
+        "depends_on": [I_PPV2, I_VPV2],
+        "extract": lambda registers, entry: (
+            round(registers.get(I_PPV2, 0) / (registers.get(I_VPV2, 0) * 0.1), 2)
+            if registers.get(I_VPV2, 0) > 0 else 0
+        ),
+        "unit": "A",
+        "device_class": "current",
+        "state_class": "measurement",
+        "scale": 1.0,
+        "icon": "mdi:solar-power",
+        "suggested_display_precision": 2,
         "enabled": True,
         "visible": True,
         "master_only": False,
@@ -246,6 +284,25 @@ SENSOR_TYPES = [
         "device_group": "PV",
     },
     {
+        "name": "PV3 Current",
+        "register_type": "calculated",
+        "depends_on": [I_PPV3, I_VPV3],
+        "extract": lambda registers, entry: (
+            round(registers.get(I_PPV3, 0) / (registers.get(I_VPV3, 0) * 0.1), 2)
+            if registers.get(I_VPV3, 0) > 0 else 0
+        ),
+        "unit": "A",
+        "device_class": "current",
+        "state_class": "measurement",
+        "scale": 1.0,
+        "icon": "mdi:solar-power",
+        "suggested_display_precision": 2,
+        "enabled": True,
+        "visible": True,
+        "master_only": False,
+        "device_group": "PV",
+    },
+    {
         "name": "PV4 Voltage",
         "register": I_VPV4,
         "register_type": "input",
@@ -272,6 +329,25 @@ SENSOR_TYPES = [
         "scale": 1.0,
         "icon": "mdi:solar-power",
         "suggested_display_precision": 0,
+        "enabled": True,
+        "visible": True,
+        "master_only": False,
+        "device_group": "PV",
+    },
+    {
+        "name": "PV4 Current",
+        "register_type": "calculated",
+        "depends_on": [I_PPV4, I_VPV4],
+        "extract": lambda registers, entry: (
+            round(registers.get(I_PPV4, 0) / (registers.get(I_VPV4, 0) * 0.1), 2)
+            if registers.get(I_VPV4, 0) > 0 else 0
+        ),
+        "unit": "A",
+        "device_class": "current",
+        "state_class": "measurement",
+        "scale": 1.0,
+        "icon": "mdi:solar-power",
+        "suggested_display_precision": 2,
         "enabled": True,
         "visible": True,
         "master_only": False,
@@ -310,6 +386,25 @@ SENSOR_TYPES = [
         "device_group": "PV",
     },
     {
+        "name": "PV5 Current",
+        "register_type": "calculated",
+        "depends_on": [I_PPV5, I_VPV5],
+        "extract": lambda registers, entry: (
+            round(registers.get(I_PPV5, 0) / (registers.get(I_VPV5, 0) * 0.1), 2)
+            if registers.get(I_VPV5, 0) > 0 else 0
+        ),
+        "unit": "A",
+        "device_class": "current",
+        "state_class": "measurement",
+        "scale": 1.0,
+        "icon": "mdi:solar-power",
+        "suggested_display_precision": 2,
+        "enabled": True,
+        "visible": True,
+        "master_only": False,
+        "device_group": "PV",
+    },
+    {
         "name": "PV6 Voltage",
         "register": I_VPV6,
         "register_type": "input",
@@ -335,6 +430,44 @@ SENSOR_TYPES = [
         "state_class": "measurement",
         "scale": 1.0,
         "icon": "mdi:solar-power",
+        "suggested_display_precision": 0,
+        "enabled": True,
+        "visible": True,
+        "master_only": False,
+        "device_group": "PV",
+    },
+    {
+        "name": "PV6 Current",
+        "register_type": "calculated",
+        "depends_on": [I_PPV6, I_VPV6],
+        "extract": lambda registers, entry: (
+            round(registers.get(I_PPV6, 0) / (registers.get(I_VPV6, 0) * 0.1), 2)
+            if registers.get(I_VPV6, 0) > 0 else 0
+        ),
+        "unit": "A",
+        "device_class": "current",
+        "state_class": "measurement",
+        "scale": 1.0,
+        "icon": "mdi:solar-power",
+        "suggested_display_precision": 2,
+        "enabled": True,
+        "visible": True,
+        "master_only": False,
+        "device_group": "PV",
+    },
+    {
+        "name": "PV Power",
+        "register_type": "calculated",
+        "depends_on": [I_PPV1, I_PPV2, I_PPV3, I_PPV4, I_PPV5, I_PPV6],
+        "extract": lambda registers, entry: (
+            registers.get(I_PPV1, 0) + registers.get(I_PPV2, 0) + registers.get(I_PPV3, 0)
+            + registers.get(I_PPV4, 0) + registers.get(I_PPV5, 0) + registers.get(I_PPV6, 0)
+        ),
+        "unit": "W",
+        "device_class": "power",
+        "state_class": "measurement",
+        "scale": 1.0,
+        "icon": "mdi:solar-power-variant",
         "suggested_display_precision": 0,
         "enabled": True,
         "visible": True,
@@ -1174,6 +1307,25 @@ SENSOR_TYPES = [
         "state_class": "total_increasing",
         "scale": 0.1,
         "icon": "mdi:solar-power",
+        "suggested_display_precision": 1,
+        "enabled": True,
+        "visible": True,
+        "master_only": False,
+        "device_group": "PV",
+    },
+    {
+        "name": "PV Energy Today",
+        "register_type": "calculated",
+        "depends_on": [I_EPV1_DAY, I_EPV2_DAY, I_EPV3_DAY, I_EPV4_DAY, I_EPV5_DAY, I_EPV6_DAY],
+        "extract": lambda registers, entry: (
+            registers.get(I_EPV1_DAY, 0) + registers.get(I_EPV2_DAY, 0) + registers.get(I_EPV3_DAY, 0)
+            + registers.get(I_EPV4_DAY, 0) + registers.get(I_EPV5_DAY, 0) + registers.get(I_EPV6_DAY, 0)
+        ),
+        "unit": "kWh",
+        "device_class": "energy",
+        "state_class": "total_increasing",
+        "scale": 0.1,
+        "icon": "mdi:solar-power-variant",
         "suggested_display_precision": 1,
         "enabled": True,
         "visible": True,
@@ -2221,6 +2373,36 @@ SENSOR_TYPES = [
          "master_only": False,
         "device_group": "PV",
      },
+    {
+        "name": "PV Energy Total",
+        "register_type": "calculated",
+        "depends_on": [
+            I_EPV1_ALL_L, I_EPV1_ALL_H,
+            I_EPV2_ALL_L, I_EPV2_ALL_H,
+            I_EPV3_ALL_L, I_EPV3_ALL_H,
+            I_EPV4_ALL_L, I_EPV4_ALL_H,
+            I_EPV5_ALL_L, I_EPV5_ALL_H,
+            I_EPV6_ALL_L, I_EPV6_ALL_H,
+        ],
+        "extract": lambda registers, entry: (
+            ((registers.get(I_EPV1_ALL_H, 0) << 16) | registers.get(I_EPV1_ALL_L, 0))
+            + ((registers.get(I_EPV2_ALL_H, 0) << 16) | registers.get(I_EPV2_ALL_L, 0))
+            + ((registers.get(I_EPV3_ALL_H, 0) << 16) | registers.get(I_EPV3_ALL_L, 0))
+            + ((registers.get(I_EPV4_ALL_H, 0) << 16) | registers.get(I_EPV4_ALL_L, 0))
+            + ((registers.get(I_EPV5_ALL_H, 0) << 16) | registers.get(I_EPV5_ALL_L, 0))
+            + ((registers.get(I_EPV6_ALL_H, 0) << 16) | registers.get(I_EPV6_ALL_L, 0))
+        ),
+        "unit": "kWh",
+        "device_class": "energy",
+        "state_class": "total_increasing",
+        "scale": 0.1,
+        "icon": "mdi:solar-power-variant",
+        "suggested_display_precision": 1,
+        "enabled": True,
+        "visible": True,
+        "master_only": False,
+        "device_group": "PV",
+    },
     {
         "name": "Inverter Energy Total",
         "register_type": "calculated",
