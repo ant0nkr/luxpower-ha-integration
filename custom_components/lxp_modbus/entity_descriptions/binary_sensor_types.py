@@ -3,6 +3,17 @@ from ..utils import get_bits
 
 BINARY_SENSOR_TYPES = [
     {
+        "name": "Grid Connected",
+        "register": I_STATE,
+        "register_type": "input",
+        "extract": lambda value: value < 64,
+        "device_class": "connectivity",
+        "enabled": True,
+        "visible": True,
+        "device_group": "Grid",
+        "master_only": False,
+    },
+    {
         "name": "BMS Charge Allowed",
         "register": I_BMS_BAT_STATUS_INV,
         "register_type": "input",
