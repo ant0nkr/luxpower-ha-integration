@@ -4,7 +4,7 @@ from ..utils import get_bits, set_bits
 SWITCH_TYPES = [
     # Register 21: H_FUNCTION_ENABLE_1
     {
-        "name": "Off-Grid Mode",
+        "name": "Power Backup",
         "register": H_FUNCTION_ENABLE_1, # 21
         "register_type": "hold",
         "extract": lambda reg: get_bits(reg, 0, 1),
@@ -55,6 +55,18 @@ SWITCH_TYPES = [
         "master_only": True,
     },
     {
+        "name": "Seamless EPS Switching",
+        "register": H_FUNCTION_ENABLE_1, # 21
+        "register_type": "hold",
+        "extract": lambda reg: get_bits(reg, 8, 1),
+        "compose": lambda orig, value: set_bits(orig, 8, 1, value),
+        "icon": "mdi:lightning-bolt-circle",
+        "device_class": "switch",
+        "enabled": True,
+        "visible": True,
+        "master_only": True,
+    },
+    {
         "name": "Forced Discharge",
         "register": H_FUNCTION_ENABLE_1, # 21
         "register_type": "hold",
@@ -67,7 +79,7 @@ SWITCH_TYPES = [
         "master_only": True,
     },
     {
-        "name": "Forced charge",
+        "name": "Charge First (PV)",
         "register": H_FUNCTION_ENABLE_1, # 21
         "register_type": "hold",
         "extract": lambda reg: get_bits(reg, 11, 1),
@@ -104,7 +116,6 @@ SWITCH_TYPES = [
         "enabled": True,
         "visible": True,
         "master_only": True,
-        "device_group": "Grid",
     },
     {
         "name": "Micro-Grid",
@@ -117,7 +128,19 @@ SWITCH_TYPES = [
         "enabled": True,
         "visible": True,
         "master_only": True,
-        "device_group": "Grid",
+    },
+    {
+        "name": "Charge Last",
+        "register": H_FUNCTION_ENABLE_3, # 110
+        "register_type": "hold",
+        "extract": lambda reg: get_bits(reg, 4, 1),
+        "compose": lambda orig, value: set_bits(orig, 4, 1, value),
+        "icon": "mdi:battery-arrow-up",
+        "device_class": "switch",
+        "enabled": True,
+        "visible": True,
+        "master_only": True,
+        "device_group": "Battery",
     },
     {
         "name": "Buzzer",
@@ -243,7 +266,7 @@ SWITCH_TYPES = [
         "enabled": True,
         "visible": True,
         "master_only": True,
-        "device_group": "Grid",
+        "device_group": "Smart Load",
     },
     # Register 233: H_FUNCTION_ENABLE_5
     {
