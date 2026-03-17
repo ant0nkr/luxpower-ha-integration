@@ -3,10 +3,14 @@ from ..utils import get_bits
 
 BINARY_SENSOR_TYPES = [
     {
+        # True when the utility grid is physically present, regardless of whether
+        # the inverter is currently grid-tied or intentionally islanding.
+        # I_FAC (register 15) is the grid-input frequency in 0.01 Hz units.
+        # It reads 0 when no grid AC is present and ~5000-6000 when the grid is live.
         "name": "Grid Connected",
-        "register": I_STATE,
-        "register_type": "input",
-        "extract": lambda value: value < 64,
+        "register_type": "calculated",
+        "depends_on": [I_FAC],
+        "extract": lambda registers, entry: registers.get(I_FAC, 0) > 0,
         "device_class": "connectivity",
         "enabled": True,
         "visible": True,

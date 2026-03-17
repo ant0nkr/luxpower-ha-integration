@@ -40,10 +40,15 @@ class ModbusBridgeBinarySensor(ModbusBridgeEntity, BinarySensorEntity):
             return None
 
         raw_val = None
-        registers = self.coordinator.data.get(self._register_type, {})
-        value = registers.get(self._register)
-        if value is not None:
-            # Use the 'extract' lambda to parse the value (e.g., for packed bits)
-            raw_val = self._desc["extract"](value)
+
+        if self._register_type == "calculated":
+            input_data = self.coordinator.data.get("input", {})
+            raw_val = self._desc["extract"](input_data, self._entry)
+        else:
+            registers = self.coordinator.data.get(self._register_type, {})
+            value = registers.get(self._register)
+            if value is not None:
+                # Use the 'extract' lambda to parse the value (e.g., for packed bits)
+                raw_val = self._desc["extract"](value)
 
         return raw_val
