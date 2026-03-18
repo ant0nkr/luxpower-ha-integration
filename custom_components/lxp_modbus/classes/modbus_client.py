@@ -74,7 +74,7 @@ class LxpModbusApiClient:
 
     async def async_request_registers(self, writer, reader, reg, request_type, function_code) -> dict:
         """Request a block of registers and return parsed values."""
-        count = min(self._block_size, TOTAL_REGISTERS - reg)
+        count = min(self._block_size, TOTAL_REGISTERS - reg) if (reg < BATTERY_INFO_START_REGISTER) else self._block_size
         req = LxpRequestBuilder.prepare_packet_for_read(
             self._dongle_serial.encode(), self._inverter_serial.encode(),
             reg, count, function_code
@@ -117,7 +117,8 @@ class LxpModbusApiClient:
                                   request_type, function_code, len(response.parsed_values_dictionary), count)
 
                 # Battery data needs special decoding — returns dict keyed by serial
-                if response.register == BATTERY_INFO_START_REGISTER:
+                # This will not work correctly with small blocks if they are not aligned
+                if response.register >= BATTERY_INFO_START_REGISTER:
                     bat_dict = LxpBatteries(response).get_battery_info()
                     _LOGGER.debug("Battery data decoded: %s", list(bat_dict.keys()))
                     return bat_dict
