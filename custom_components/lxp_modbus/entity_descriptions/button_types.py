@@ -7,7 +7,7 @@ BUTTON_TYPES = [
         "name": "Reboot Inverter",
         "register": H_RESET_SETTINGS, # 11
         "register_type": "hold",
-        "press": lambda orig, value: set_bits(orig, 7, 1, value),
+        "press": lambda orig: set_bits(orig, 7, 1, 1),
         "icon": "mdi:restart-alert",
         "enabled": True,
         "visible": True,
