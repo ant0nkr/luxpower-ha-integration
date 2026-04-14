@@ -61,7 +61,9 @@ class LxpRequestBuilder:
         buf += LxpRequestBuilder.WRITE_SINGLE.to_bytes(1, 'little')
         buf += serial_number
         buf += register.to_bytes(2, 'little')
-        buf += value.to_bytes(2, 'little', signed=True)
+        # Modbus holding register writes are 16-bit values; preserve the full
+        # register word even when high bits are set on bitfield-style registers.
+        buf += (value & 0xFFFF).to_bytes(2, 'little')
 
         data_frame = bytes(buf[20:36])  # always 16 bytes
         crc = LxpPacketUtils.compute_crc(data_frame)
