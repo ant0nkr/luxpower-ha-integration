@@ -45,6 +45,7 @@ H_FUNCTION_ENABLE_1 = 21
 # Bit 12: ISOEn - ISO enable
 # Bit 13: GFCIEn - GFCI enable
 # Bit 14: DCIEN - DCI enable
+# Bit 15: FeedInGridEn - Grid Export enable
 
 # --- Grid & Power Settings ---
 H_FUNCTION_ENABLE_2_AND_PV_START_VOLT = 22 # Combined register: Bit 15=FeedInGridEn, Bits 0-14=StartPVVolt (Unit: 0.1V, Range: 900-5000).
