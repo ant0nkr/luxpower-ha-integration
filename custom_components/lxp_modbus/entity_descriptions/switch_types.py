@@ -90,6 +90,19 @@ SWITCH_TYPES = [
         "visible": True,
         "master_only": True,
     },
+    {
+        "name": "Grid Export",
+        "register": H_FUNCTION_ENABLE_1, # 21
+        "register_type": "hold",
+        "extract": lambda reg: get_bits(reg, 15, 1),
+        "compose": lambda orig, value: set_bits(orig, 15, 1, value),
+        "icon": "mdi:transmission-tower-export",
+        "device_class": "switch",
+        "enabled": True,
+        "visible": True,
+        "master_only": True,
+        "device_group": "Grid",
+    },
     # Register 22: H_FUNCTION_ENABLE_2_AND_PV_START_VOLT
     {
         "name": "Feed-In Grid",
