@@ -561,6 +561,9 @@ NUMBER_TYPES = [
         "name": "Battery Low SOC Recovery",
         "register": H_BAT_LOW_BACK_SOC,
         "register_type": "hold",
+        # The protocol document says 20-100, but hardware reports 0 when the feature
+        # is not configured, so the floor is lowered to let that value be written
+        # back. See docs/protocol-registers.md.
         "min": 0,
         "max": 100,
         "step": 1,
