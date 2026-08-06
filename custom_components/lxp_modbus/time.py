@@ -52,20 +52,7 @@ class ModbusBridgeTime(ModbusBridgeEntity, TimeEntity):
 
     async def async_set_value(self, value: dt_time) -> None:
         """Set the time value."""
-        hour = value.hour
-        minute = value.minute
-
-        # Use the compose function to create the new register value
-        new_register_value = self._compose(hour, minute)
-
-        if not self._api_client:
-            _LOGGER.error("API client not found, cannot write to time entity '%s'", self.name)
-            return
-
-        # Call the write method on the API client
-        success = await self._api_client.async_write_register(self._register, new_register_value)
-        
-        if success:
-            # Optimistically update the coordinator's data and refresh the entity
-            self.coordinator.data[self._register_type][self._register] = new_register_value
-            self.async_write_ha_state()
+        # The time occupies the whole register, so the current value is not needed.
+        await self._async_write_register(
+            lambda _current: self._compose(value.hour, value.minute)
+        )

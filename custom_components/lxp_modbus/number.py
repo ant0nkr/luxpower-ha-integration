@@ -3,7 +3,12 @@ import logging
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import DOMAIN, CONF_ENTITY_PREFIX, DEFAULT_ENTITY_PREFIX
+from .const import (
+    DOMAIN,
+    CONF_ENTITY_PREFIX,
+    DEFAULT_ENTITY_PREFIX,
+    UNIMPLEMENTED_REGISTER_VALUE,
+)
 from .entity import ModbusBridgeEntity
 from .entity_descriptions.number_types import NUMBER_TYPES
 
@@ -32,7 +37,8 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
         self._attr_native_min_value = desc["min"]
         self._attr_native_max_value = desc["max"]
         self._attr_native_step = desc.get("step", 1)
-        self._attr_native_unit_of_measurement = desc.get("unit")
+        # "" is not the same as no unit to Home Assistant
+        self._attr_native_unit_of_measurement = desc.get("unit") or None
         self._attr_icon = desc.get("icon")
         
         # Use explicit mode from description, with sensible defaults
@@ -46,42 +52,51 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
         self._extract_fn = desc.get("extract")
         self._compose_fn = desc.get("compose")
 
+        # A negative minimum means the register carries a signed value, so the
+        # all-bits-set pattern is -1 rather than "not implemented".
+        self._is_signed = self._attr_native_min_value < 0
+
     @property
     def native_value(self) -> float | None:
         """Return the current value of the number entity."""
         register_value = self.coordinator.data.get(self._register_type, {}).get(self._register)
         if register_value is None:
             return None
-            
+
+        # Registers the inverter does not implement read back as all bits set, which
+        # would surface as e.g. 6553.5 V. Everything else is reported as-is: a value
+        # outside the documented range is still what the inverter holds — 0 commonly
+        # means "not configured", and firmwares do report values the docs do not list.
+        #
+        # Signed registers are excluded: there 0xFFFF is -1, a perfectly ordinary
+        # value (e.g. a CT power offset of -1 W).
+        if not self._is_signed and register_value == UNIMPLEMENTED_REGISTER_VALUE:
+            _LOGGER.debug(
+                "Ignoring unimplemented register for '%s': register %s reads 0x%04X",
+                self.name, self._register, register_value,
+            )
+            return None
+
         # Apply extract function if defined (for handling signed values, bit extraction, etc.)
         if self._extract_fn:
             register_value = self._extract_fn(register_value)
-            
+
         # Scale the raw register value for display in the UI
         scaled_value = register_value / self._multiplier
-        
+
         # Return a clean int if it's a whole number, otherwise a float
         return int(scaled_value) if scaled_value == int(scaled_value) else scaled_value
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
-        # Scale the UI value up to the raw integer value for writing to the register
-        value_to_write = int(value * self._multiplier)
+        # Scale the UI value up to the raw integer value for writing to the register.
+        # round() is required: int(58.1 * 10) is 580, not 581, because 58.1 has no
+        # exact binary representation — truncating writes the wrong value.
+        value_to_write = int(round(value * self._multiplier))
 
-        # Apply compose function if defined (for handling signed values, bit manipulation, etc.)
         if self._compose_fn:
-            # Get current register value for compose function
-            current_value = self.coordinator.data.get(self._register_type, {}).get(self._register, 0)
-            value_to_write = self._compose_fn(current_value, value_to_write)
-
-        if not self._api_client:
-            _LOGGER.error("API client not found, cannot write to number '%s'", self.name)
-            return
-
-        # Call the write method on the API client
-        success = await self._api_client.async_write_register(self._register, value_to_write)
-        
-        if success:
-            # Optimistically update the coordinator's data and refresh the entity
-            self.coordinator.data[self._register_type][self._register] = value_to_write
-            self.async_write_ha_state()
+            await self._async_write_register(
+                lambda current: self._compose_fn(current, value_to_write)
+            )
+        else:
+            await self._async_write_register(lambda _current: value_to_write)

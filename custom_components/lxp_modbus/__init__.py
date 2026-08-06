@@ -56,38 +56,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Create our custom coordinator
     coordinator = LxpModbusDataUpdateCoordinator(
         hass,
+        entry,
         api_client,
         poll_interval,
-        entry.title
     )
 
-    # Store the coordinator and other shared objects in hass.data for this entry
+    # Store the coordinator and other shared objects in hass.data for this entry.
+    # write_lock serialises read-modify-write cycles so two entities sharing one
+    # register (e.g. the eight controls packed into H_FUNCTION_ENABLE_1) cannot
+    # compose their new value from the same pre-write snapshot.
     hass.data[DOMAIN][entry.entry_id] = {
         "coordinator": coordinator,
         "settings": {**entry.data, **entry.options},
         "lock": lock,
+        "write_lock": asyncio.Lock(),
         "api_client": api_client
     }
 
-    # Perform the first data refresh. This will block setup until the first poll is
-    # successful. It also handles exceptions and configuration entry setup retries.
-    try:
-        await coordinator.async_config_entry_first_refresh()
-    except Exception as e:
-        # If first refresh fails, log the error but continue setup
-        # This allows the integration to be configured even if the inverter
-        # is temporarily unavailable
-        _LOGGER.error("Initial data refresh failed: %s. Setup will continue, but entities may be unavailable until connection is established.", e)
-
-        # Schedule a refresh soon to try again
-        async def delayed_refresh(now=None):
-            try:
-                await coordinator.async_refresh()
-            except Exception as refresh_err:
-                _LOGGER.error("Delayed refresh attempt failed: %s", refresh_err)
-
-        # Try again in 30 seconds
-        hass.loop.call_later(30, lambda: hass.async_create_task(delayed_refresh()))
+    # Perform the first data refresh. Failures raise ConfigEntryNotReady, which lets
+    # Home Assistant retry setup with its own backoff — do not swallow it.
+    await coordinator.async_config_entry_first_refresh()
 
     # Determine which platforms to load based on the read-only setting
     settings = hass.data[DOMAIN][entry.entry_id]["settings"]

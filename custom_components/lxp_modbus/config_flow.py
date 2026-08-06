@@ -29,9 +29,34 @@ from .const import (
     LEGACY_REGISTER_BLOCK_SIZE,
     SERIAL_LENGTH,
 )
-from .classes.inverter_discovery import get_inverter_model_from_device
+from .classes.inverter_discovery import (
+    CannotConnect,
+    InvalidResponse,
+    get_inverter_model_from_device,
+)
 
 _LOGGER = logging.getLogger(__name__)
+
+
+async def async_fetch_model(user_input, errors) -> str | None:
+    """Read the inverter model, recording a specific error when it fails."""
+    try:
+        return await get_inverter_model_from_device(
+            user_input[CONF_HOST],
+            user_input[CONF_PORT],
+            user_input[CONF_DONGLE_SERIAL],
+            user_input[CONF_INVERTER_SERIAL],
+        )
+    except CannotConnect as err:
+        _LOGGER.debug("Inverter discovery could not connect: %s", err)
+        errors["base"] = "cannot_connect"
+    except InvalidResponse as err:
+        _LOGGER.debug("Inverter discovery got an unusable response: %s", err)
+        errors["base"] = "invalid_response"
+    except Exception:  # noqa: BLE001 - surfaced to the user as a generic failure
+        _LOGGER.exception("Unexpected error reading the inverter model")
+        errors["base"] = "model_fetch_failed"
+    return None
 
 
 def validate_serial(value):
@@ -72,10 +97,8 @@ class LxpModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors[CONF_CONNECTION_RETRIES] = "invalid_connection_retries"
                 
                 if not errors:
-                    model = await get_inverter_model_from_device(user_input[CONF_HOST], user_input[CONF_PORT], user_input[CONF_DONGLE_SERIAL], user_input[CONF_INVERTER_SERIAL])
-                    if not model:
-                        errors["base"] = "model_fetch_failed"
-                    else:
+                    model = await async_fetch_model(user_input, errors)
+                    if model:
                         user_input["model"] = model
                         title = user_input.get(CONF_ENTITY_PREFIX) or "Luxpower Inverter"
                         return self.async_create_entry(title=title, data=user_input)
@@ -118,15 +141,8 @@ class LxpModbusOptionsFlow(config_entries.OptionsFlow):
                     errors[CONF_CONNECTION_RETRIES] = "invalid_connection_retries"
                 
                 if not errors:
-                    model = await get_inverter_model_from_device(
-                        user_input[CONF_HOST],
-                        user_input[CONF_PORT],
-                        user_input[CONF_DONGLE_SERIAL],
-                        user_input[CONF_INVERTER_SERIAL]
-                    )
-                    if not model:
-                        errors["base"] = "model_fetch_failed"
-                    else:
+                    model = await async_fetch_model(user_input, errors)
+                    if model:
                         new_data = {**current_config, **user_input}
                         new_data["model"] = model
                         

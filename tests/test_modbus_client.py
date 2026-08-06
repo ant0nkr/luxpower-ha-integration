@@ -17,8 +17,9 @@ from custom_components.lxp_modbus.classes.data_validator import is_data_sane
 from custom_components.lxp_modbus.classes.lxp_response import LxpResponse
 from custom_components.lxp_modbus.classes.lxp_request_builder import LxpRequestBuilder
 from custom_components.lxp_modbus.const import (
-    DEFAULT_CONNECTION_RETRIES, TOTAL_REGISTERS, RESPONSE_OVERHEAD, 
-    WRITE_RESPONSE_LENGTH, MAX_PACKET_RECOVERY_ATTEMPTS, PACKET_RECOVERY_TIMEOUT
+    DEFAULT_CONNECTION_RETRIES, TOTAL_REGISTERS, RESPONSE_OVERHEAD,
+    WRITE_RESPONSE_LENGTH, MAX_PACKET_RECOVERY_ATTEMPTS, PACKET_RECOVERY_TIMEOUT,
+    MAX_CACHED_DATA_FAILURES, WRITE_READ_TIMEOUT
 )
 from custom_components.lxp_modbus.constants.hold_registers import H_AC_CHARGE_START_TIME, H_AC_CHARGE_END_TIME
 
@@ -309,17 +310,12 @@ class TestLxpModbusApiClient:
 
     @pytest.mark.asyncio
     async def test_async_get_data_connection_failure(self, client):
-        """Test data retrieval with connection failure."""
-        # Mock connection failure for enough attempts to trigger UpdateFailed
+        """Test data retrieval with connection failure and no cached data."""
         client._connection_retries = 1  # Reduce retries for faster test
         with patch('asyncio.open_connection', side_effect=ConnectionRefusedError("Connection refused")):
-            # Should raise UpdateFailed after enough failures without cached data
-            result = await client.async_get_data()
-            # The method returns empty data structure for the first few failures
-            assert result == {"input": {}, "hold": {}, "battery": {}}
-            
-            # After enough failures, it should raise UpdateFailed
-            client._connection_failure_count = 10  # Simulate many failures
+            # With nothing cached there is nothing honest to report, so the failure
+            # is surfaced immediately instead of an empty dataset that looks like a
+            # successful poll to the coordinator.
             with pytest.raises(UpdateFailed):
                 await client.async_get_data()
 
@@ -330,6 +326,7 @@ class TestLxpModbusApiClient:
         client._last_good_input_regs = {0: 100, 1: 200}
         client._last_good_hold_regs = {0: 300, 1: 400}
         client._last_good_battery_data = {}
+        client._connection_retries = 1
 
         # Mock connection failure
         with patch('asyncio.open_connection', side_effect=ConnectionRefusedError("Connection refused")):
@@ -339,6 +336,47 @@ class TestLxpModbusApiClient:
             assert result["input"] == {0: 100, 1: 200}
             assert result["hold"] == {0: 300, 1: 400}
             assert result["battery"] == {}
+
+    @pytest.mark.asyncio
+    async def test_async_get_data_fails_after_cache_window(self, client):
+        """Test that stale data is not served indefinitely."""
+        client._last_good_input_regs = {0: 100}
+        client._last_good_hold_regs = {0: 300}
+        client._connection_retries = 1
+
+        with patch('asyncio.open_connection', side_effect=ConnectionRefusedError("Connection refused")):
+            # Each failure inside the window still serves the cached dataset.
+            for _ in range(MAX_CACHED_DATA_FAILURES):
+                result = await client.async_get_data()
+                assert result["input"] == {0: 100}
+
+            # The window is now exhausted, so the failure must be surfaced.
+            with pytest.raises(UpdateFailed):
+                await client.async_get_data()
+
+    @pytest.mark.asyncio
+    async def test_async_get_data_returns_copies(self, client):
+        """Test that callers cannot mutate the client's cache through the result.
+
+        Entities write their new value into coordinator.data after a successful
+        register write; if that dictionary were the client's cache, a value the
+        inverter never accepted would be reported as real indefinitely.
+        """
+        client._last_good_input_regs = {0: 100}
+        client._last_good_hold_regs = {0: 300}
+        client._last_good_battery_data = {"BATTERY01": {5000: 7}}
+        client._connection_retries = 1
+
+        with patch('asyncio.open_connection', side_effect=ConnectionRefusedError("Connection refused")):
+            result = await client.async_get_data()
+
+        result["input"][0] = 999
+        result["hold"][0] = 999
+        result["battery"]["BATTERY01"][5000] = 999
+
+        assert client._last_good_input_regs == {0: 100}
+        assert client._last_good_hold_regs == {0: 300}
+        assert client._last_good_battery_data == {"BATTERY01": {5000: 7}}
 
     @pytest.mark.asyncio
     async def test_async_get_data_connection_retry(self, client, mock_reader_writer, sample_input_response):
@@ -432,8 +470,54 @@ class TestLxpModbusApiClient:
                 mock_response_class.return_value = mock_response
                 
                 result = await client.async_write_register(100, 500)
-                
+
                 assert result is False
+
+    @pytest.mark.asyncio
+    async def test_async_write_register_ack_timeout_does_not_hang(self, client, mock_reader_writer):
+        """Test that a silent inverter cannot wedge the write path.
+
+        The acknowledgement read happens while holding the shared lock, so an
+        unbounded read would block polling and every later write forever.
+        """
+        reader, writer = mock_reader_writer
+        client._connection_retries = 1
+
+        async def never_answers(*args, **kwargs):
+            await asyncio.sleep(WRITE_READ_TIMEOUT + 5)
+            return b""
+
+        reader.read.side_effect = never_answers
+
+        with patch('asyncio.open_connection', return_value=(reader, writer)):
+            result = await asyncio.wait_for(
+                client.async_write_register(100, 500), timeout=WRITE_READ_TIMEOUT + 3
+            )
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_async_write_register_releases_lock_between_attempts(self, client, mock_reader_writer):
+        """Test that the retry delay is not taken while holding the lock."""
+        reader, writer = mock_reader_writer
+        client._connection_retries = 2
+        client._lock = asyncio.Lock()
+
+        lock_held_during_sleep = []
+        real_sleep = asyncio.sleep
+
+        async def watching_sleep(delay, *args, **kwargs):
+            lock_held_during_sleep.append(client._lock.locked())
+            await real_sleep(0)
+
+        with patch('asyncio.open_connection', side_effect=ConnectionRefusedError("refused")):
+            with patch('custom_components.lxp_modbus.classes.modbus_client.asyncio.sleep',
+                       side_effect=watching_sleep):
+                result = await client.async_write_register(100, 500)
+
+        assert result is False
+        assert lock_held_during_sleep, "expected at least one retry delay"
+        assert not any(lock_held_during_sleep), "retry delay must not hold the shared lock"
 
 
 class TestDataSanityFunction:

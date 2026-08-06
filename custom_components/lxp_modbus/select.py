@@ -54,20 +54,4 @@ class ModbusBridgeSelect(ModbusBridgeEntity, SelectEntity):
             _LOGGER.warning("Invalid option selected for %s: %s", self.name, option)
             return
 
-        if not self._api_client:
-            _LOGGER.error("API client not found, cannot write to select '%s'", self.name)
-            return
-            
-        # Get the current value of the entire register to modify it
-        original_register_value = self.coordinator.data.get(self._register_type, {}).get(self._register, 0)
-
-        # Use the compose function to create the new register value
-        new_register_value = self._compose(original_register_value, index)
-
-        # Call the write method on the API client
-        success = await self._api_client.async_write_register(self._register, new_register_value)
-        
-        if success:
-            # Optimistically update the coordinator's data and refresh the entity
-            self.coordinator.data[self._register_type][self._register] = new_register_value
-            self.async_write_ha_state()
+        await self._async_write_register(lambda current: self._compose(current, index))

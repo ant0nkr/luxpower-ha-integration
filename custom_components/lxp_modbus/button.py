@@ -34,20 +34,6 @@ class ModbusBridgeButton(ModbusBridgeEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         """Handle the button press action."""
-        if not self._api_client:
-            _LOGGER.error("API client not found, cannot press button '%s'", self.name)
-            return
-
-        # Get the current value of the register, as the press action might need it
-        original_register_value = self.coordinator.data.get(self._register_type, {}).get(self._register, 0)
-
-        # Use the press function from the description to determine the new value to write
-        new_register_value = self._press(original_register_value)
-
-        # Call the write method on the API client
-        success = await self._api_client.async_write_register(self._register, new_register_value)
-        
-        if success:
-            # After a successful write, request an immediate refresh from the coordinator.
-            # This makes the UI update quickly with any state changes caused by the button press.
-            await self.coordinator.async_request_refresh()
+        # The press function may need the current register value, so it composes under
+        # the shared write lock and the coordinator is refreshed afterwards.
+        await self._async_write_register(lambda current: self._press(current))

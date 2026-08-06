@@ -561,7 +561,10 @@ NUMBER_TYPES = [
         "name": "Battery Low SOC Recovery",
         "register": H_BAT_LOW_BACK_SOC,
         "register_type": "hold",
-        "min": 20,
+        # The protocol document says 20-100, but hardware reports 0 when the feature
+        # is not configured, so the floor is lowered to let that value be written
+        # back. See docs/protocol-registers.md.
+        "min": 0,
         "max": 100,
         "step": 1,
         "unit": "%",
@@ -1077,7 +1080,7 @@ NUMBER_TYPES = [
         "extract": lambda value: value & 0xFF,
         "compose": lambda orig, value: (orig & 0xFF00) | (value & 0xFF),
         "min": 0,
-        "max": 100,
+        "max": 101,
         "step": 1,
         "unit": "%",
         "multiplier": 1,
@@ -1092,7 +1095,7 @@ NUMBER_TYPES = [
         "register": H_CHARGE_FIRST_END_VOLT,
         "register_type": "hold",
         "min": 48.0,
-        "max": 59.0,
+        "max": 59.5,  # Hardware reports 595; the 590 documented ceiling is not enforced.
         "step": 0.1,
         "unit": "V",
         "multiplier": 10,
@@ -2028,6 +2031,9 @@ NUMBER_TYPES = [
         "step": 0.1,
         "unit": "°C",
         "multiplier": 10,
+        # Signed: the declared minimum is negative, so raw 65336 is -200 -> -20.0 C.
+        "extract": lambda value: value if value < 32768 else value - 65536,
+        "compose": lambda orig, value: value if value >= 0 else value + 65536,
         "icon": "mdi:thermometer-low",
         "enabled": True,
         "visible": True,
@@ -2560,7 +2566,7 @@ NUMBER_TYPES = [
         "name": "Generator Cool Down Time",
         "register": H_GEN_COOL_DOWN_TIME,
         "register_type": "hold",
-        "min": 0.1,
+        "min": 0,
         "max": 25.5,
         "step": 0.1,
         "unit": "min",
