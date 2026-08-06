@@ -1,5 +1,6 @@
 """Base class for LuxPower Modbus entities."""
 import logging
+from homeassistant.core import callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, CoordinatorEntity
 from homeassistant.helpers.entity import generate_entity_id
 from .utils import format_firmware_version
@@ -13,6 +14,9 @@ class ModbusBridgeEntity(CoordinatorEntity):
 
     # Subclasses can set _battery_serial before calling super().__init__()
     _battery_serial = None
+
+    # Sentinel distinct from None, which is a legitimate register value
+    _last_fingerprint = object()
 
     def __init__(self, coordinator: DataUpdateCoordinator, entry, desc: dict, entity_prefix: str, api_client):
 
@@ -94,15 +98,43 @@ class ModbusBridgeEntity(CoordinatorEntity):
         await self.coordinator.async_request_refresh()
         return True
 
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes."""
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Write state only when this entity's own source data changed.
+
+        Every entity listens to the coordinator, and there are several hundred of
+        them per inverter. Writing state unconditionally on each poll costs a full
+        state machine update per entity even though most registers never move.
+        """
+        fingerprint = self._source_fingerprint()
+        if fingerprint is not None and fingerprint == self._last_fingerprint:
+            return
+        self._last_fingerprint = fingerprint
+        super()._handle_coordinator_update()
+
+    def _source_fingerprint(self):
+        """Return a value that changes only when this entity's inputs change.
+
+        Returns None when no cheap fingerprint is available, which forces a write.
+        """
+        data = self.coordinator.data
+        if not data:
+            return None
+
         if self._register_type.endswith("calculated"):
-            return {"dependencies": self._desc.get("depends_on")}
-        return {
-            "register": self._register,
-            "register_type": self._register_type,
-        }
+            # Calculated entities derive from several registers.
+            source = data.get("battery", {}).get(self._battery_serial, {}) \
+                if self._register_type == "battery_calculated" else data.get("input", {})
+            depends_on = self._desc.get("depends_on")
+            if not depends_on:
+                return None
+            return tuple(source.get(register) for register in depends_on)
+
+        if self._register_type == "battery":
+            source = data.get("battery", {}).get(self._battery_serial, {})
+        else:
+            source = data.get(self._register_type, {})
+        return source.get(self._register)
 
 
     @property

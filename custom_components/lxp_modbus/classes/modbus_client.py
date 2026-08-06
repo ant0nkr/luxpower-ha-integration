@@ -6,8 +6,11 @@ import time as time_lib
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from ..const import (
+    BATTERY_BACKOFF_POLL_EVERY,
+    BATTERY_EMPTY_POLLS_BEFORE_BACKOFF,
     BATTERY_INFO_START_REGISTER,
     DEFAULT_CONNECTION_RETRIES,
+    HOLD_REGISTER_POLL_EVERY,
     INITIAL_RETRY_DELAY,
     MAX_CACHED_DATA_FAILURES,
     MAX_RETRY_DELAY,
@@ -44,7 +47,8 @@ class LxpModbusApiClient:
 
     def __init__(self, host: str, port: int, dongle_serial: str, inverter_serial: str, lock: asyncio.Lock,
                  block_size: int = 125, connection_retries: int = DEFAULT_CONNECTION_RETRIES,
-                 skip_initial_data: bool = True, request_battery_data: bool = False):
+                 skip_initial_data: bool = True, request_battery_data: bool = False,
+                 battery_serials_configured: bool = False):
         """Initialize the API client."""
         self._dongle_serial = dongle_serial
         self._inverter_serial = inverter_serial
@@ -52,12 +56,22 @@ class LxpModbusApiClient:
         self._block_size = block_size
         self._connection_retries = connection_retries
         self._request_battery_data = request_battery_data
+        # Explicitly listed serials are an assertion that packs exist, so their
+        # block is never polled less often — silence there is a fault to surface.
+        self._battery_serials_configured = battery_serials_configured
         self._last_good_input_regs = {}
         self._last_good_hold_regs = {}
         self._last_good_battery_data = {}
         self._connection_retry_count = 0
         self._last_successful_connection = None
         self._connection_failure_count = 0
+        self._poll_count = 0
+        self._hold_polls = 0
+        self._polls_since_hold = 0
+        self._battery_empty_polls = 0
+        self._battery_skipped_polls = 0
+        self._battery_backoff_counter = 0
+        self._force_hold_poll = True  # first poll must read settings
 
         # Composed dependencies
         self._connection_manager = ModbusConnectionManager(
@@ -139,6 +153,63 @@ class LxpModbusApiClient:
         """Get packet recovery statistics for monitoring and debugging."""
         return self._packet_recovery.get_stats()
 
+    def request_hold_refresh(self) -> None:
+        """Make the next poll re-read the hold registers.
+
+        Called after a successful write so the change is confirmed against the
+        inverter on the very next poll instead of waiting for the settings cycle.
+        """
+        self._force_hold_poll = True
+
+    def _should_poll_hold(self) -> bool:
+        """Decide whether this poll re-reads the settings registers."""
+        self._poll_count += 1
+
+        if self._force_hold_poll:
+            self._force_hold_poll = False
+            self._polls_since_hold = 0
+            return True
+
+        self._polls_since_hold += 1
+        if self._polls_since_hold >= HOLD_REGISTER_POLL_EVERY:
+            self._polls_since_hold = 0
+            return True
+        return False
+
+    def _should_poll_battery(self) -> bool:
+        """Decide whether this poll reads the battery register block."""
+        # A configured serial list asserts the packs exist, so keep asking.
+        if self._battery_serials_configured:
+            return True
+
+        if self._battery_empty_polls < BATTERY_EMPTY_POLLS_BEFORE_BACKOFF:
+            return True
+
+        self._battery_backoff_counter += 1
+        if self._battery_backoff_counter >= BATTERY_BACKOFF_POLL_EVERY:
+            self._battery_backoff_counter = 0
+            return True
+        return False
+
+    def _record_battery_result(self, got_data: bool) -> None:
+        """Track whether the battery block is producing anything."""
+        if got_data:
+            if self._battery_empty_polls >= BATTERY_EMPTY_POLLS_BEFORE_BACKOFF:
+                _LOGGER.info("Battery data is available again; polling it every cycle.")
+            self._battery_empty_polls = 0
+            self._battery_backoff_counter = 0
+            return
+
+        self._battery_empty_polls += 1
+        if self._battery_empty_polls == BATTERY_EMPTY_POLLS_BEFORE_BACKOFF:
+            _LOGGER.info(
+                "The battery register block has returned no data %s times, so it will be "
+                "polled every %s cycles from now on. Some batteries do not publish this "
+                "data even when the inverter reports packs connected. Polling returns to "
+                "every cycle as soon as any data appears.",
+                self._battery_empty_polls, BATTERY_BACKOFF_POLL_EVERY,
+            )
+
     def _snapshot(self) -> dict:
         """Return a copy of the last known good dataset.
 
@@ -206,6 +277,8 @@ class LxpModbusApiClient:
         newly_polled_battery_data = {}
         writer = None
 
+        poll_hold = self._should_poll_hold()
+
         async with self._lock:
             reader, writer = await self._connection_manager.async_connect()
             try:
@@ -224,18 +297,25 @@ class LxpModbusApiClient:
                             and I_BAT_PARALLEL_NUM in newly_polled_input_regs
                             and newly_polled_input_regs[I_BAT_PARALLEL_NUM] > 0
                             and self._block_size >= 120):
-                        for reg in range(BATTERY_INFO_START_REGISTER,
-                                         BATTERY_INFO_START_REGISTER + 120,
-                                         self._block_size):
-                            bat_block = await self.async_request_registers(
-                                writer, reader, reg, "input/bat", 4)
-                            newly_polled_battery_data.update(bat_block)
+                        if self._should_poll_battery():
+                            for reg in range(BATTERY_INFO_START_REGISTER,
+                                             BATTERY_INFO_START_REGISTER + 120,
+                                             self._block_size):
+                                bat_block = await self.async_request_registers(
+                                    writer, reader, reg, "input/bat", 4)
+                                newly_polled_battery_data.update(bat_block)
+                            self._record_battery_result(bool(newly_polled_battery_data))
+                        else:
+                            self._battery_skipped_polls += 1
 
-                    # Poll HOLD registers (expecting function code 3)
-                    for reg in range(0, TOTAL_REGISTERS, self._block_size):
-                        reg_block = await self.async_request_registers(writer, reader, reg, "hold", 3)
-                        if len(reg_block) > 0:
-                            newly_polled_hold_regs.update(reg_block)
+                    # Poll HOLD registers (expecting function code 3). These are
+                    # settings, so they are not re-read on every poll.
+                    if poll_hold:
+                        for reg in range(0, TOTAL_REGISTERS, self._block_size):
+                            reg_block = await self.async_request_registers(writer, reader, reg, "hold", 3)
+                            if len(reg_block) > 0:
+                                newly_polled_hold_regs.update(reg_block)
+                        self._hold_polls += 1
 
                 except asyncio.TimeoutError:
                     _LOGGER.debug("Timeout requesting data from inverter")
@@ -347,6 +427,9 @@ class LxpModbusApiClient:
                 received_value = response_dict.get(register)
                 if received_value == value:
                     _LOGGER.info("Successfully wrote register %s with value %s.", register, value)
+                    # Settings are not read on every poll, so make sure the next one
+                    # picks up what the inverter actually stored.
+                    self.request_hold_refresh()
                     return True
 
                 _LOGGER.warning("Write attempt %s failed: Confirmation mismatch, sent=%s received=%s",
@@ -365,6 +448,12 @@ class LxpModbusApiClient:
             "block_size": self._block_size,
             "connection_retries": self._connection_retries,
             "request_battery_data": self._request_battery_data,
+            "battery_serials_configured": self._battery_serials_configured,
+            "polls": self._poll_count,
+            "hold_polls": self._hold_polls,
+            "hold_poll_every": HOLD_REGISTER_POLL_EVERY,
+            "battery_empty_polls": self._battery_empty_polls,
+            "battery_skipped_polls": self._battery_skipped_polls,
             "consecutive_failures": self._connection_failure_count,
             "reconnect_count": self._connection_retry_count,
             "last_success": self._last_success_description(),

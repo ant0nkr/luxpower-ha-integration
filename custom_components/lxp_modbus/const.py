@@ -72,5 +72,17 @@ MAX_CACHED_DATA_FAILURES = 2
 # A register the inverter does not implement reads back with all bits set
 UNIMPLEMENTED_REGISTER_VALUE = 0xFFFF
 
+# Hold registers hold configuration: they only change when something writes them,
+# so re-reading them on every poll doubles the request count for no new data. They
+# are refreshed every Nth poll, and always immediately after a successful write.
+HOLD_REGISTER_POLL_EVERY = 5
+
+# Some batteries report nothing on the battery register block even though the
+# inverter reports packs connected (non-LuxPower BMS). Rather than give up, the
+# block is polled less often after repeated empty responses, and every poll again
+# as soon as any data appears.
+BATTERY_EMPTY_POLLS_BEFORE_BACKOFF = 5
+BATTERY_BACKOFF_POLL_EVERY = 10
+
 # Serial number validation
 SERIAL_LENGTH = 10
