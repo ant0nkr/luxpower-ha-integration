@@ -3,7 +3,12 @@ import logging
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import DOMAIN, CONF_ENTITY_PREFIX, DEFAULT_ENTITY_PREFIX
+from .const import (
+    DOMAIN,
+    CONF_ENTITY_PREFIX,
+    DEFAULT_ENTITY_PREFIX,
+    UNIMPLEMENTED_REGISTER_VALUE,
+)
 from .entity import ModbusBridgeEntity
 from .entity_descriptions.number_types import NUMBER_TYPES
 
@@ -54,23 +59,23 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
         if register_value is None:
             return None
 
+        # Registers the inverter does not implement read back as all bits set, which
+        # would surface as e.g. 6553.5 V. Everything else is reported as-is: a value
+        # outside the documented range is still what the inverter holds — 0 commonly
+        # means "not configured", and firmwares do report values the docs do not list.
+        if register_value == UNIMPLEMENTED_REGISTER_VALUE:
+            _LOGGER.debug(
+                "Ignoring unimplemented register for '%s': register %s reads 0x%04X",
+                self.name, self._register, register_value,
+            )
+            return None
+
         # Apply extract function if defined (for handling signed values, bit extraction, etc.)
         if self._extract_fn:
             register_value = self._extract_fn(register_value)
 
         # Scale the raw register value for display in the UI
         scaled_value = register_value / self._multiplier
-
-        # Registers that the inverter does not implement often read as 0xFFFF, which
-        # would surface as a value far outside the declared range (and make Home
-        # Assistant reject it). Report unknown instead of a value we know is wrong.
-        if not (self._attr_native_min_value <= scaled_value <= self._attr_native_max_value):
-            _LOGGER.debug(
-                "Ignoring out-of-range value for '%s': register %s = %s (scaled %s, allowed %s-%s)",
-                self.name, self._register, register_value, scaled_value,
-                self._attr_native_min_value, self._attr_native_max_value,
-            )
-            return None
 
         # Return a clean int if it's a whole number, otherwise a float
         return int(scaled_value) if scaled_value == int(scaled_value) else scaled_value

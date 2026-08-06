@@ -69,5 +69,8 @@ RETRY_BACKOFF_MULTIPLIER = 1.5
 # stale values are never presented as live for long.
 MAX_CACHED_DATA_FAILURES = 2
 
+# A register the inverter does not implement reads back with all bits set
+UNIMPLEMENTED_REGISTER_VALUE = 0xFFFF
+
 # Serial number validation
 SERIAL_LENGTH = 10

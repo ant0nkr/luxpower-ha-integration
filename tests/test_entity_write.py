@@ -100,19 +100,29 @@ class TestNumberValueHandling:
 
         assert entity.native_value == 58.5
 
-    def test_native_value_rejects_out_of_range(self, coordinator, entry, api_client):
-        """Unimplemented registers often read 0xFFFF; that is not a real voltage."""
-        coordinator.data["hold"][228] = 65535
+    def test_native_value_rejects_unimplemented_register(self, coordinator, entry, api_client):
+        """A register the inverter does not implement reads 0xFFFF, not 6553.5 V."""
+        coordinator.data["hold"][228] = 0xFFFF
         entity = make_number(coordinator, entry, api_client)
 
         assert entity.native_value is None
 
-    def test_native_value_rejects_below_minimum(self, coordinator, entry, api_client):
-        """A zeroed register is below the declared minimum and is not reported."""
+    def test_native_value_reports_zero(self, coordinator, entry, api_client):
+        """0 is below the documented minimum but means "not configured", not garbage.
+
+        Real hardware holds 0 in many of these settings; hiding it loses real data.
+        """
         coordinator.data["hold"][228] = 0
         entity = make_number(coordinator, entry, api_client)
 
-        assert entity.native_value is None
+        assert entity.native_value == 0
+
+    def test_native_value_reports_above_documented_maximum(self, coordinator, entry, api_client):
+        """Firmware reports values the documentation does not list (e.g. SOC 101%)."""
+        coordinator.data["hold"][228] = 600  # 60.0 V, above the declared 59.5 max
+        entity = make_number(coordinator, entry, api_client)
+
+        assert entity.native_value == 60.0
 
     def test_native_value_missing_register(self, coordinator, entry, api_client):
         """An absent register reads as unknown."""
