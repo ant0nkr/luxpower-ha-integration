@@ -52,6 +52,10 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
         self._extract_fn = desc.get("extract")
         self._compose_fn = desc.get("compose")
 
+        # A negative minimum means the register carries a signed value, so the
+        # all-bits-set pattern is -1 rather than "not implemented".
+        self._is_signed = self._attr_native_min_value < 0
+
     @property
     def native_value(self) -> float | None:
         """Return the current value of the number entity."""
@@ -63,7 +67,10 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
         # would surface as e.g. 6553.5 V. Everything else is reported as-is: a value
         # outside the documented range is still what the inverter holds — 0 commonly
         # means "not configured", and firmwares do report values the docs do not list.
-        if register_value == UNIMPLEMENTED_REGISTER_VALUE:
+        #
+        # Signed registers are excluded: there 0xFFFF is -1, a perfectly ordinary
+        # value (e.g. a CT power offset of -1 W).
+        if not self._is_signed and register_value == UNIMPLEMENTED_REGISTER_VALUE:
             _LOGGER.debug(
                 "Ignoring unimplemented register for '%s': register %s reads 0x%04X",
                 self.name, self._register, register_value,

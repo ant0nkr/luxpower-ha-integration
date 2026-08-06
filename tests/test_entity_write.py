@@ -130,6 +130,50 @@ class TestNumberValueHandling:
 
         assert entity.native_value is None
 
+    def test_native_value_keeps_minus_one_on_signed_register(self, coordinator, entry, api_client):
+        """0xFFFF is -1 on a signed register, not an unimplemented register.
+
+        Registers like the external CT power offset are signed, so the
+        unimplemented-register check must not swallow -1.
+        """
+        signed_desc = {
+            "name": "External CT Power Offset",
+            "register": 119,
+            "register_type": "hold",
+            "min": -32768,
+            "max": 32767,
+            "step": 1,
+            "unit": "W",
+            "multiplier": 1,
+            "extract": lambda value: value if value < 32768 else value - 65536,
+            "compose": lambda orig, value: value if value >= 0 else value + 65536,
+            "master_only": False,
+        }
+        coordinator.data["hold"][119] = 0xFFFF
+        entity = make_number(coordinator, entry, api_client, signed_desc)
+
+        assert entity.native_value == -1
+
+    def test_native_value_converts_signed_temperature(self, coordinator, entry, api_client):
+        """Observed on hardware: raw 65336 is -20.0 C, not 6533.6 C."""
+        temp_desc = {
+            "name": "Lead-Acid Discharge Temp Low Limit",
+            "register": 106,
+            "register_type": "hold",
+            "min": -40.0,
+            "max": 100.0,
+            "step": 0.1,
+            "unit": "°C",
+            "multiplier": 10,
+            "extract": lambda value: value if value < 32768 else value - 65536,
+            "compose": lambda orig, value: value if value >= 0 else value + 65536,
+            "master_only": False,
+        }
+        coordinator.data["hold"][106] = 65336
+        entity = make_number(coordinator, entry, api_client, temp_desc)
+
+        assert entity.native_value == -20.0
+
     @pytest.mark.asyncio
     async def test_set_value_rounds_instead_of_truncating(self, coordinator, entry, api_client):
         """58.1 * 10 is 580.999... in binary, so truncation would write 580."""

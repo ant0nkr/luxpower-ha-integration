@@ -48,6 +48,27 @@ Both are listed in `KNOWN_DIVERGENCES` in the test:
   when the feature is not configured, so the reported value could not be written
   back. The document says 20–100.
 
+## Verified against a live register dump
+
+A full poll from a real inverter (hold 0–374 and 500–624, decoded from the debug
+frames) settled three things. Pinned by `tests/test_observed_registers.py`.
+
+| Reg | Finding |
+|-----|---------|
+| 106 | `Lead-Acid Discharge Temp Low Limit` reads raw **65336**. The declared minimum is −40 °C, so the register is signed: 65336 → −200 → **−20.0 °C**. It had no signed conversion and displayed **6533.6 °C**. Fixed. |
+| 201 | `Charge First End Voltage` reads raw **595** (59.5 V), above the documented 590 ceiling. Maximum raised to 59.5 so the value the hardware holds can be written back. |
+| 75 | `Charge First SOC Limit` reads **101**, above the documented 100. Maximum raised to 101. |
+
+The dump also showed **`0xFFFF` only in input registers 629 and 631 — never in a
+hold register.** That matters for the unimplemented-register check in `number.py`:
+it only ever applies to unsigned hold registers, so excluding signed ones costs
+nothing while avoiding a real error. Two hold entities are signed (119 `External CT
+Power Offset`, 117 `Start Charge P_import Threshold`, both min −32768), where
+`0xFFFF` is an ordinary −1.
+
+`test_signed_registers_declare_a_negative_minimum` enforces the invariant this
+relies on: any description converting to signed must declare a negative minimum.
+
 ## Reading 0 is not an error
 
 Many of these settings read `0` on real hardware when the feature is not configured,

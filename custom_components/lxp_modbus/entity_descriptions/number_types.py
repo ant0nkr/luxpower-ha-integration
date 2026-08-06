@@ -1095,7 +1095,7 @@ NUMBER_TYPES = [
         "register": H_CHARGE_FIRST_END_VOLT,
         "register_type": "hold",
         "min": 48.0,
-        "max": 59.0,
+        "max": 59.5,  # Hardware reports 595; the 590 documented ceiling is not enforced.
         "step": 0.1,
         "unit": "V",
         "multiplier": 10,
@@ -2031,6 +2031,9 @@ NUMBER_TYPES = [
         "step": 0.1,
         "unit": "°C",
         "multiplier": 10,
+        # Signed: the declared minimum is negative, so raw 65336 is -200 -> -20.0 C.
+        "extract": lambda value: value if value < 32768 else value - 65536,
+        "compose": lambda orig, value: value if value >= 0 else value + 65536,
         "icon": "mdi:thermometer-low",
         "enabled": True,
         "visible": True,
