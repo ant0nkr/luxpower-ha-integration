@@ -43,6 +43,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Determine if battery data should be requested
     battery_entities = entry.data.get(CONF_BATTERY_ENTITIES, DEFAULT_BATTERY_ENTITIES).replace(" ", "").split(",")
     request_battery_data = bool(battery_entities) and 'none' not in battery_entities
+    # Explicit serials mean the user asserts those packs exist, so the battery block
+    # keeps being polled every cycle even if it stays empty.
+    battery_serials_configured = any(
+        value not in ('', 'none', 'auto') for value in battery_entities
+    )
 
     # Create a single asyncio.Lock to prevent read/write race conditions
     lock = asyncio.Lock()
@@ -50,7 +55,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     connection_retries = entry.data.get(CONF_CONNECTION_RETRIES, DEFAULT_CONNECTION_RETRIES)
     api_client = LxpModbusApiClient(
         host, port, dongle_serial, inverter_serial, lock, block_size, connection_retries,
-        request_battery_data=request_battery_data
+        request_battery_data=request_battery_data,
+        battery_serials_configured=battery_serials_configured,
     )
 
     # Create our custom coordinator

@@ -263,5 +263,88 @@ class TestSharedWritePath:
         assert len(written) == 2
 
 
+class TestUnchangedStateSuppression:
+    """Several hundred entities share one coordinator; unchanged ones stay quiet."""
+
+    def test_no_write_when_the_register_is_unchanged(self, coordinator, entry, api_client):
+        """Most registers never move, so most entities should do nothing."""
+        coordinator.data["hold"][228] = 585
+        entity = make_number(coordinator, entry, api_client)
+        entity._handle_coordinator_update()          # first update establishes the value
+        entity.async_write_ha_state.reset_mock()
+
+        entity._handle_coordinator_update()
+        entity._handle_coordinator_update()
+
+        entity.async_write_ha_state.assert_not_called()
+
+    def test_writes_when_the_register_changes(self, coordinator, entry, api_client):
+        """A real change must still reach Home Assistant."""
+        coordinator.data["hold"][228] = 585
+        entity = make_number(coordinator, entry, api_client)
+        entity._handle_coordinator_update()
+        entity.async_write_ha_state.reset_mock()
+
+        coordinator.data["hold"][228] = 590
+        entity._handle_coordinator_update()
+
+        entity.async_write_ha_state.assert_called_once()
+
+    def test_first_update_always_writes(self, coordinator, entry, api_client):
+        """The initial value has to be published."""
+        coordinator.data["hold"][228] = 585
+        entity = make_number(coordinator, entry, api_client)
+
+        entity._handle_coordinator_update()
+
+        entity.async_write_ha_state.assert_called_once()
+
+    def test_appearing_register_writes(self, coordinator, entry, api_client):
+        """A register that shows up after being absent is a change."""
+        entity = make_number(coordinator, entry, api_client)
+        entity._handle_coordinator_update()          # absent -> None
+        entity.async_write_ha_state.reset_mock()
+
+        coordinator.data["hold"][228] = 585
+        entity._handle_coordinator_update()
+
+        entity.async_write_ha_state.assert_called_once()
+
+    def test_calculated_entity_tracks_all_dependencies(self, coordinator, entry, api_client):
+        """Calculated entities must react to any of their inputs moving."""
+        calc_desc = {
+            "name": "Battery Flow",
+            "register_type": "calculated",
+            "depends_on": [10, 11],
+            "unit": "W",
+            "min": -100000,
+            "max": 100000,
+            "step": 1,
+            "multiplier": 1,
+            "master_only": False,
+        }
+        coordinator.data["input"] = {10: 100, 11: 0}
+        entity = make_number(coordinator, entry, api_client, calc_desc)
+        entity._handle_coordinator_update()
+        entity.async_write_ha_state.reset_mock()
+
+        entity._handle_coordinator_update()
+        entity.async_write_ha_state.assert_not_called()
+
+        coordinator.data["input"][11] = 50
+        entity._handle_coordinator_update()
+        entity.async_write_ha_state.assert_called_once()
+
+    def test_register_metadata_is_not_in_state_attributes(self, coordinator, entry, api_client):
+        """Static metadata on every entity is recorder weight for no benefit."""
+        coordinator.data["hold"][228] = 585
+        entity = make_number(coordinator, entry, api_client)
+
+        attributes = entity.extra_state_attributes or {}
+
+        assert "register" not in attributes
+        assert "register_type" not in attributes
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
