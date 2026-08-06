@@ -113,9 +113,11 @@ class ModbusBridgeSensor(ModbusBridgeEntity, SensorEntity):
             self._attr_device_class = None
             self._attr_native_unit_of_measurement = None
         else:
-            # This is a numerical sensor
+            # This is a numerical sensor.
+            # An empty unit string is not the same as "no unit" to Home Assistant, so
+            # normalise it: a number of descriptions carry "unit": "".
             self._attr_device_class = self._desc.get("device_class")
-            self._attr_native_unit_of_measurement = self._desc.get("unit")
+            self._attr_native_unit_of_measurement = self._desc.get("unit") or None
 
     @property
     def native_value(self):
@@ -240,5 +242,5 @@ class ModbusBridgeReadOnlySensor(ModbusBridgeEntity, SensorEntity):
     def native_unit_of_measurement(self) -> str | None:
         """Return the unit of measurement if it was originally a number entity."""
         if self._platform == Platform.NUMBER:
-            return self._desc.get("unit")
+            return self._desc.get("unit") or None
         return None

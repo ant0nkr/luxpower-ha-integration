@@ -32,7 +32,8 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
         self._attr_native_min_value = desc["min"]
         self._attr_native_max_value = desc["max"]
         self._attr_native_step = desc.get("step", 1)
-        self._attr_native_unit_of_measurement = desc.get("unit")
+        # "" is not the same as no unit to Home Assistant
+        self._attr_native_unit_of_measurement = desc.get("unit") or None
         self._attr_icon = desc.get("icon")
         
         # Use explicit mode from description, with sensible defaults
@@ -52,36 +53,38 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
         register_value = self.coordinator.data.get(self._register_type, {}).get(self._register)
         if register_value is None:
             return None
-            
+
         # Apply extract function if defined (for handling signed values, bit extraction, etc.)
         if self._extract_fn:
             register_value = self._extract_fn(register_value)
-            
+
         # Scale the raw register value for display in the UI
         scaled_value = register_value / self._multiplier
-        
+
+        # Registers that the inverter does not implement often read as 0xFFFF, which
+        # would surface as a value far outside the declared range (and make Home
+        # Assistant reject it). Report unknown instead of a value we know is wrong.
+        if not (self._attr_native_min_value <= scaled_value <= self._attr_native_max_value):
+            _LOGGER.debug(
+                "Ignoring out-of-range value for '%s': register %s = %s (scaled %s, allowed %s-%s)",
+                self.name, self._register, register_value, scaled_value,
+                self._attr_native_min_value, self._attr_native_max_value,
+            )
+            return None
+
         # Return a clean int if it's a whole number, otherwise a float
         return int(scaled_value) if scaled_value == int(scaled_value) else scaled_value
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
-        # Scale the UI value up to the raw integer value for writing to the register
-        value_to_write = int(value * self._multiplier)
+        # Scale the UI value up to the raw integer value for writing to the register.
+        # round() is required: int(58.1 * 10) is 580, not 581, because 58.1 has no
+        # exact binary representation — truncating writes the wrong value.
+        value_to_write = int(round(value * self._multiplier))
 
-        # Apply compose function if defined (for handling signed values, bit manipulation, etc.)
         if self._compose_fn:
-            # Get current register value for compose function
-            current_value = self.coordinator.data.get(self._register_type, {}).get(self._register, 0)
-            value_to_write = self._compose_fn(current_value, value_to_write)
-
-        if not self._api_client:
-            _LOGGER.error("API client not found, cannot write to number '%s'", self.name)
-            return
-
-        # Call the write method on the API client
-        success = await self._api_client.async_write_register(self._register, value_to_write)
-        
-        if success:
-            # Optimistically update the coordinator's data and refresh the entity
-            self.coordinator.data[self._register_type][self._register] = value_to_write
-            self.async_write_ha_state()
+            await self._async_write_register(
+                lambda current: self._compose_fn(current, value_to_write)
+            )
+        else:
+            await self._async_write_register(lambda _current: value_to_write)

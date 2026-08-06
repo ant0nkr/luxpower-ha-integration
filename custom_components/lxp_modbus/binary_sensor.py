@@ -28,7 +28,8 @@ class ModbusBridgeBinarySensor(ModbusBridgeEntity, BinarySensorEntity):
         """Initialize the binary_sensor entity."""
         super().__init__(coordinator, entry, desc, entity_prefix, api_client)
         
-        self._attr_state_class = self._desc.get("state_class")
+        # Note: binary sensors have no state_class, so any value in the description
+        # is deliberately ignored here.
         self._attr_device_class = self._desc.get("device_class")
         self._attr_icon = desc.get("icon")
 

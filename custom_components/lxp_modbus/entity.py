@@ -59,6 +59,42 @@ class ModbusBridgeEntity(CoordinatorEntity):
                 self._attr_unique_id = f"{entity_prefix}_{self._register}_{id_name}"
 
     @property
+    def _write_lock(self):
+        """Return the per-entry lock that serialises read-modify-write cycles."""
+        return self.coordinator.hass.data[DOMAIN][self._entry.entry_id]["write_lock"]
+
+    async def _async_write_register(self, compose_value) -> bool:
+        """Write this entity's register and re-sync from the inverter.
+
+        ``compose_value`` receives the current register value and returns the value
+        to write, so registers packing several controls keep their sibling bits.
+
+        The lock matters because many registers back more than one entity: without
+        it, two writes started within one poll interval would both compose from the
+        same pre-write snapshot and the second would undo the first.
+        """
+        if not self._api_client:
+            _LOGGER.error("API client not found, cannot write to '%s'", self.name)
+            return False
+
+        async with self._write_lock:
+            registers = self.coordinator.data.setdefault(self._register_type, {})
+            current_value = registers.get(self._register, 0)
+            value_to_write = compose_value(current_value)
+
+            if not await self._api_client.async_write_register(self._register, value_to_write):
+                return False
+
+            # Show the new value immediately, but treat it as provisional: only the
+            # next poll proves what the inverter actually stored.
+            registers[self._register] = value_to_write
+            self.async_write_ha_state()
+
+        # Requested outside the lock; the coordinator debounces concurrent requests.
+        await self.coordinator.async_request_refresh()
+        return True
+
+    @property
     def extra_state_attributes(self):
         """Return the state attributes."""
         if self._register_type.endswith("calculated"):
@@ -73,11 +109,9 @@ class ModbusBridgeEntity(CoordinatorEntity):
     def device_info(self):
         """Return device information for all entities."""
 
-        # Get the hold registers from the coordinator's data
-        hold_registers = self.coordinator.data.get("hold", {})
-
-        # Specifically check for the registers required for the firmware version
-        required_fw_regs = {k: hold_registers.get(k) for k in [7, 8, 9, 10]}
+        # Get the hold registers from the coordinator's data. This property is read
+        # by Home Assistant before the first poll completes, so data may be missing.
+        hold_registers = (self.coordinator.data or {}).get("hold", {})
 
         # Use the helper function to format the firmware version
         firmware_version = format_firmware_version(hold_registers)
@@ -114,7 +148,7 @@ class ModbusBridgeEntity(CoordinatorEntity):
     @property
     def is_master(self) -> bool:
         """Return True if the inverter is the master or standalone."""
-        parallel_status = self.coordinator.data.get("input", {}).get(I_MASTER_SLAVE_PARALLEL_STATUS)
+        parallel_status = (self.coordinator.data or {}).get("input", {}).get(I_MASTER_SLAVE_PARALLEL_STATUS)
         if parallel_status is None:
             return True # Assume master if status is unavailable
         role = parallel_status & 3 # Extract bits 0-1

@@ -54,22 +54,6 @@ class ModbusBridgeSwitch(ModbusBridgeEntity, SwitchEntity):
 
     async def _set_bit_value(self, value: int) -> None:
         """Compose the new register value and write it to the inverter."""
-        # Get the shared API client from hass.data
-        if not self._api_client:
-            _LOGGER.error("API client not found, cannot write to switch '%s'", self.name)
-            return
-
-        # Get the current value of the entire register to modify it
-        original_register_value = self.coordinator.data.get(self._register_type, {}).get(self._register, 0)
-
-        # Use the compose function to set the desired bit within the register value
-        new_register_value = self._compose(original_register_value, value)
-
-        # Call the new write method on the API client
-        success = await self._api_client.async_write_register(self._register, new_register_value)
-        
-        if success:
-            # Optimistically update the coordinator's data with the new register value
-            self.coordinator.data[self._register_type][self._register] = new_register_value
-            # Tell HA to update the state of this entity immediately
-            self.async_write_ha_state()
+        # Several switches share one register, so the compose runs under the shared
+        # write lock against the freshest register value available.
+        await self._async_write_register(lambda current: self._compose(current, value))

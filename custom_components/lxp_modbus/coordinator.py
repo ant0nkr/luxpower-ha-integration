@@ -3,8 +3,8 @@ import logging
 import time as time_lib
 from datetime import timedelta
 
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import INTEGRATION_TITLE
@@ -23,84 +23,82 @@ RECOVERY_ESCALATION_HIGH = 20
 class LxpModbusDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching LuxPower Modbus data."""
 
-    def __init__(self, hass: HomeAssistant, api_client, poll_interval: int, entry_title: str):
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, api_client, poll_interval: int):
         """Initialize the coordinator."""
         super().__init__(
             hass,
             _LOGGER,
-            name=f"{INTEGRATION_TITLE} ({entry_title})",
-            update_method=self._async_update_data,
+            # Passing the entry explicitly is required by Home Assistant; the
+            # implicit ContextVar fallback is removed in 2026.8.
+            config_entry=entry,
+            name=f"{INTEGRATION_TITLE} ({entry.title})",
             update_interval=timedelta(seconds=poll_interval),
         )
         self.api_client = api_client
         self._failed_updates = 0
         self._last_success = None
         self._is_recovering = False
-        self._recovery_interval = None
         self._original_poll_interval = poll_interval
+
+    @property
+    def failed_updates(self) -> int:
+        """Return the number of consecutive failed updates."""
+        return self._failed_updates
+
+    @property
+    def is_recovering(self) -> bool:
+        """Return True while the coordinator is on the accelerated retry schedule."""
+        return self._is_recovering
+
+    @property
+    def last_success(self) -> float | None:
+        """Return the timestamp of the last successful update."""
+        return self._last_success
 
     async def _async_update_data(self):
         """Fetch data from API endpoint."""
         try:
             data = await self.api_client.async_get_data()
-            self._failed_updates = 0
-            self._last_success = time_lib.time()
+        except UpdateFailed:
+            self._register_failure()
+            raise
+        except Exception as err:
+            self._register_failure()
+            raise UpdateFailed(f"Unexpected error polling the inverter: {err}") from err
 
-            # If we were in recovery mode, go back to normal
-            if self._is_recovering:
-                _LOGGER.info("Connection recovered! Resuming normal polling schedule.")
-                self._is_recovering = False
-                if self._recovery_interval:
-                    self._recovery_interval()
-                    self._recovery_interval = None
-                # Restore normal update interval
-                self.update_interval = timedelta(seconds=self._original_poll_interval)
+        self._failed_updates = 0
+        self._last_success = time_lib.time()
 
-            return data
-        except UpdateFailed as err:
-            self._failed_updates += 1
-
-            # Start recovery mode if we're not already in it
-            if not self._is_recovering and self._failed_updates >= RECOVERY_MODE_THRESHOLD:
-                self._start_recovery_mode()
-
-            # After several consecutive failures, we should still raise the error
-            # to make sure the entities show as unavailable
-            raise err
-
-    def _start_recovery_mode(self):
-        """Start a more aggressive reconnection strategy."""
+        # If we were in recovery mode, go back to the normal schedule
         if self._is_recovering:
+            _LOGGER.info("Connection recovered! Resuming normal polling schedule.")
+            self._is_recovering = False
+            self.update_interval = timedelta(seconds=self._original_poll_interval)
+
+        return data
+
+    def _register_failure(self) -> None:
+        """Count a failed update and escalate the retry schedule if needed."""
+        self._failed_updates += 1
+
+        if self._failed_updates < RECOVERY_MODE_THRESHOLD:
             return
 
-        self._is_recovering = True
-        _LOGGER.warning("Connection lost! Starting recovery mode with more frequent reconnection attempts.")
-
-        # Switch to a more aggressive polling schedule during recovery,
-        # gradually increasing the interval if still failing
+        # Only the coordinator's own schedule is adjusted. An additional parallel
+        # timer would double the request rate against a dongle that is already
+        # failing, and would keep firing after the config entry is unloaded.
         recovery_interval = RECOVERY_INTERVAL_INITIAL
         if self._failed_updates > RECOVERY_ESCALATION_MEDIUM:
             recovery_interval = RECOVERY_INTERVAL_MEDIUM
         if self._failed_updates > RECOVERY_ESCALATION_HIGH:
             recovery_interval = RECOVERY_INTERVAL_HIGH
 
-        self.update_interval = timedelta(seconds=recovery_interval)
+        if not self._is_recovering:
+            self._is_recovering = True
+            _LOGGER.warning("Connection lost! Starting recovery mode with more frequent reconnection attempts.")
 
-        # Also set up a periodic forced refresh that runs in parallel
-        # to the regular update schedule
-        @callback
-        def periodic_recovery_refresh(now=None):
-            """Force a refresh on a timer."""
-            _LOGGER.debug("Recovery mode: forcing a refresh attempt (fail count: %s)", self._failed_updates)
-            self.async_refresh()
-
-        # Cancel any existing recovery interval
-        if self._recovery_interval:
-            self._recovery_interval()
-
-        # Set up a recurring timer for forced refresh attempts
-        self._recovery_interval = async_track_time_interval(
-            self.hass,
-            periodic_recovery_refresh,
-            timedelta(seconds=recovery_interval)
-        )
+        new_interval = timedelta(seconds=recovery_interval)
+        if self.update_interval != new_interval:
+            _LOGGER.debug("Recovery mode: polling every %ss (fail count: %s)",
+                          recovery_interval, self._failed_updates)
+            self.update_interval = new_interval

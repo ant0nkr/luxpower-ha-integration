@@ -21,6 +21,8 @@
       }
     },
     "error": {
+      "cannot_connect": "Could not reach the WiFi dongle. Check the IP address, the port, and that nothing else is connected to the dongle.",
+      "invalid_response": "The dongle answered but the response could not be read. Check both serial numbers and the register block size.",
       "model_fetch_failed": "Could not communicate with the inverter. Please check the Host, Port, and all Serial Numbers.",
       "invalid_serial": "Serial numbers must be exactly 10 characters."
     },
@@ -49,8 +51,10 @@
       }
     },
     "error": {
-        "model_fetch_failed": "Could not communicate with the inverter. Please check the Host, Port, and all Serial Numbers.",
-        "invalid_serial": "Serial numbers must be exactly 10 characters."
+      "cannot_connect": "Could not reach the WiFi dongle. Check the IP address, the port, and that nothing else is connected to the dongle.",
+      "invalid_response": "The dongle answered but the response could not be read. Check both serial numbers and the register block size.",
+      "model_fetch_failed": "Could not communicate with the inverter. Please check the Host, Port, and all Serial Numbers.",
+      "invalid_serial": "Serial numbers must be exactly 10 characters."
     }
   }
 }

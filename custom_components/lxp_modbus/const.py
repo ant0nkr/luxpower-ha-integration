@@ -55,13 +55,19 @@ BATTERY_INFO_START_REGISTER = 5000  # Start of battery info register range
 
 # Communication timeouts (seconds)
 READ_TIMEOUT = 3
+WRITE_READ_TIMEOUT = 5  # Timeout waiting for a write acknowledgement
 WRITE_RETRY_DELAY = 1
-INITIAL_RETRY_DELAY = 30
+# Connection retries happen inside a single poll, so the total backoff has to stay
+# well below the poll interval. The retry sleep is taken outside the shared lock so
+# it never blocks a user-initiated write.
+INITIAL_RETRY_DELAY = 2
+MAX_RETRY_DELAY = 10
 RETRY_BACKOFF_MULTIPLIER = 1.5
 
-# Failure thresholds for cached/empty data fallback
-MAX_CACHED_DATA_FAILURES = 5
-MAX_EMPTY_DATA_FAILURES = 3
+# Number of consecutive poll failures tolerated before entities are marked
+# unavailable. Small window so a flaky dongle does not cause UI flapping, while
+# stale values are never presented as live for long.
+MAX_CACHED_DATA_FAILURES = 2
 
 # Serial number validation
 SERIAL_LENGTH = 10
