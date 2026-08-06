@@ -1,3 +1,46 @@
+ALL_PV_STRINGS = frozenset(range(1, 7))
+
+# Hold register 20 (PVInputModel) says which PV inputs are in use, but two mappings
+# exist. The generic one is 0:NoPV 1:PV1 2:PV2 3:PV1&2 parallel 4:PV1&2 separate, and
+# the 12K Hybrid one is 0:NoPV 1:PV1 2:PV2 3:PV3 4:PV1&2 5:PV1&3 6:PV2&3 7:PV1&2&3.
+#
+# Only value 3 disagrees between them, so every other value gives a definite answer
+# without having to identify the model — and values 5-7 exist only in the 12K
+# mapping. Value 3 is deliberately absent here: unknown is safer than wrong, because
+# hiding a working string is worse than showing an unused one.
+PV_INPUT_MODEL_STRINGS = {
+    0: frozenset(),
+    1: frozenset({1}),
+    2: frozenset({2}),
+    4: frozenset({1, 2}),
+    5: frozenset({1, 3}),
+    6: frozenset({2, 3}),
+    7: frozenset({1, 2, 3}),
+}
+
+
+def active_pv_strings(pv_input_model: int | None) -> frozenset[int] | None:
+    """Return the PV strings the inverter reports, or None if it cannot be told.
+
+    None means "assume every string", which is the historical behaviour.
+    """
+    if pv_input_model is None:
+        return None
+    return PV_INPUT_MODEL_STRINGS.get(pv_input_model)
+
+
+def sum_pv_registers(registers: dict, string_registers: dict, strings) -> int:
+    """Sum one register per PV string, skipping strings that are not present.
+
+    string_registers maps a string number (1-6) to its register.
+    """
+    return sum(
+        registers.get(register, 0)
+        for string, register in string_registers.items()
+        if string in strings
+    )
+
+
 def decode_model_from_registers(registers: dict) -> str:
     """
     Decode inverter model from 2 HOLD registers (7 and 8).

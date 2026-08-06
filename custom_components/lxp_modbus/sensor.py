@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import time as dt_time
 
 from homeassistant.components.sensor import SensorEntity
@@ -15,7 +16,9 @@ from .const import (
     DEFAULT_ENTITY_PREFIX,
     DEFAULT_BATTERY_ENTITIES,
 )
+from .constants.hold_registers import H_PV_INPUT_MODEL
 from .entity import ModbusBridgeEntity
+from .utils import ALL_PV_STRINGS, active_pv_strings
 from .entity_descriptions.sensor_types import SENSOR_TYPES, BATTERY_SENSOR_TYPES
 from .entity_descriptions.number_types import NUMBER_TYPES
 from .entity_descriptions.selectbox_types import SELECTBOX_TYPES
@@ -23,6 +26,25 @@ from .entity_descriptions.switch_types import SWITCH_TYPES
 from .entity_descriptions.time_types import TIME_TYPES
 
 _LOGGER = logging.getLogger(__name__)
+
+_PV_STRING_NAME = re.compile(r"^PV(\d)\b")
+
+
+def _apply_pv_availability(desc: dict, pv_strings) -> dict:
+    """Disable per-string PV sensors for strings the inverter does not have.
+
+    Returns the description unchanged when the string set is unknown, so a mapping
+    we cannot interpret never hides a working sensor.
+    """
+    if pv_strings is None:
+        return desc
+
+    match = _PV_STRING_NAME.match(desc.get("name", ""))
+    if not match or int(match.group(1)) in pv_strings:
+        return desc
+
+    return {**desc, "enabled": False}
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up sensor entities from a config entry."""
@@ -36,9 +58,17 @@ async def async_setup_entry(hass, entry, async_add_entities):
         .replace(" ", "").split(",")
     )
 
+    # The inverter reports which PV inputs are in use. Entities for inputs it does
+    # not have are created disabled rather than omitted, so an existing install keeps
+    # whatever the user already had enabled.
+    pv_strings = active_pv_strings((coordinator.data or {}).get("hold", {}).get(H_PV_INPUT_MODEL))
+    if pv_strings is not None:
+        _LOGGER.debug("Inverter reports PV strings %s in use", sorted(pv_strings) or "none")
+
     # Create a list to hold all the entities we're about to create
     entities = [
-        ModbusBridgeSensor(coordinator, entry, desc, entity_prefix, api_client)
+        ModbusBridgeSensor(coordinator, entry, _apply_pv_availability(desc, pv_strings),
+                           entity_prefix, api_client)
         for desc in SENSOR_TYPES
     ]
 
@@ -128,8 +158,18 @@ class ModbusBridgeSensor(ModbusBridgeEntity, SensorEntity):
 
         raw_val = None
 
+        # Combined PV sensors take the set of strings the inverter reports, so unused
+        # inputs (which can hold stale non-zero values) do not inflate the total.
+        if "extract_pv" in self._desc:
+            input_data = self.coordinator.data.get("input", {})
+            hold_data = self.coordinator.data.get("hold", {})
+            strings = active_pv_strings(hold_data.get(H_PV_INPUT_MODEL))
+            if strings is None:
+                strings = ALL_PV_STRINGS
+            raw_val = self._desc["extract_pv"](input_data, strings)
+
         # Determine the raw (unscaled) value based on the sensor type
-        if self._register_type == "calculated":
+        elif self._register_type == "calculated":
             # For calculated sensors, call the special 'extract' lambda
             input_data = self.coordinator.data.get("input", {})
             calculation_func = self._desc["extract"]

@@ -274,6 +274,8 @@ NUMBER_TYPES = [
         "max": 52.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:battery-arrow-up-outline",
         "enabled": True,
@@ -289,6 +291,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:battery-check-outline",
         "enabled": True,
@@ -364,6 +368,8 @@ NUMBER_TYPES = [
         "max": 56.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:grid",
         "enabled": True,
@@ -394,6 +400,8 @@ NUMBER_TYPES = [
         "max": 59.5,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:battery-off-outline",
         "enabled": True,
@@ -462,6 +470,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:battery",
         "enabled": True,
@@ -477,6 +487,8 @@ NUMBER_TYPES = [
         "max": 56.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:battery-plus-outline",
         "enabled": True,
@@ -520,6 +532,8 @@ NUMBER_TYPES = [
         "max": 50.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:battery-alert-variant-outline",
         "enabled": True,
@@ -535,6 +549,8 @@ NUMBER_TYPES = [
         "max": 52.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:battery-sync-outline",
         "enabled": True,
@@ -617,6 +633,8 @@ NUMBER_TYPES = [
         "max": 52.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:engine-outline",
         "enabled": True,
@@ -632,6 +650,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:engine-off-outline",
         "enabled": True,
@@ -1098,6 +1118,8 @@ NUMBER_TYPES = [
         "max": 59.5,  # Hardware reports 595; the 590 documented ceiling is not enforced.
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:battery-check-outline",
         "enabled": True,
@@ -1145,6 +1167,8 @@ NUMBER_TYPES = [
         "max": 56.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:battery-outline",
         "enabled": True,
@@ -2000,6 +2024,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:battery-charging-outline",
         "enabled": True,
@@ -2015,6 +2041,8 @@ NUMBER_TYPES = [
         "max": 52.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:battery-outline",
         "enabled": True,
@@ -2093,6 +2121,8 @@ NUMBER_TYPES = [
         "max": 56.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:battery-minus-outline",
         "enabled": True,
@@ -2138,6 +2168,8 @@ NUMBER_TYPES = [
         "max": 51.4,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:battery-arrow-up",
         "enabled": True,
@@ -2170,6 +2202,8 @@ NUMBER_TYPES = [
         "max": 60.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:chart-scatter-plot",
         "enabled": True,
@@ -2185,6 +2219,8 @@ NUMBER_TYPES = [
         "max": 60.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:chart-scatter-plot",
         "enabled": True,
@@ -2319,6 +2355,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:home-lightning-bolt",
         "enabled": True,
@@ -2334,6 +2372,8 @@ NUMBER_TYPES = [
         "max": 52.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:home-lightning-bolt-outline",
         "enabled": True,
@@ -2413,6 +2453,8 @@ NUMBER_TYPES = [
         "max": 59.5,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:power-plug-outline",
         "enabled": True,
@@ -2428,6 +2470,8 @@ NUMBER_TYPES = [
         "max": 80.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:power-plug-outline",
         "enabled": True,
@@ -2447,6 +2491,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:chart-gantt",
         "enabled": True,
@@ -2477,6 +2523,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:chart-gantt",
         "enabled": True,
@@ -2532,6 +2580,23 @@ NUMBER_TYPES = [
         "enabled": True,
         "visible": True,
         "master_only": True,
+    },
+    {
+        # Register 22 in full. It previously backed a "Feed-In Grid" switch that
+        # wrote bit 15, which corrupted this voltage.
+        "name": "Start PV Voltage",
+        "register": H_START_PV_VOLT,
+        "register_type": "hold",
+        "min": 90.0,
+        "max": 500.0,
+        "step": 0.1,
+        "unit": "V",
+        "multiplier": 10,
+        "icon": "mdi:solar-panel",
+        "enabled": True,
+        "visible": True,
+        "master_only": False,
+        "device_group": "PV",
     },
     {
         "name": "Start PV Power",
@@ -2599,6 +2664,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:scale-balance",
         "enabled": True,
@@ -2654,6 +2721,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt",
         "enabled": True,
@@ -2703,6 +2772,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt",
         "enabled": True,
@@ -2753,6 +2824,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt",
         "enabled": True,
@@ -2802,6 +2875,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt",
         "enabled": True,
@@ -2852,6 +2927,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt",
         "enabled": True,
@@ -2901,6 +2978,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt",
         "enabled": True,
@@ -2951,6 +3030,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt",
         "enabled": True,
@@ -3000,6 +3081,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt",
         "enabled": True,
@@ -3050,6 +3133,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt",
         "enabled": True,
@@ -3099,6 +3184,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt",
         "enabled": True,
@@ -3149,6 +3236,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt",
         "enabled": True,
@@ -3198,6 +3287,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt",
         "enabled": True,
@@ -3248,6 +3339,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt",
         "enabled": True,
@@ -3297,6 +3390,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt",
         "enabled": True,
@@ -3351,6 +3446,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt-outline",
         "enabled": True,
@@ -3400,6 +3497,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt-outline",
         "enabled": True,
@@ -3450,6 +3549,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt-outline",
         "enabled": True,
@@ -3499,6 +3600,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt-outline",
         "enabled": True,
@@ -3549,6 +3652,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt-outline",
         "enabled": True,
@@ -3598,6 +3703,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt-outline",
         "enabled": True,
@@ -3648,6 +3755,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt-outline",
         "enabled": True,
@@ -3697,6 +3806,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt-outline",
         "enabled": True,
@@ -3747,6 +3858,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt-outline",
         "enabled": True,
@@ -3796,6 +3909,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt-outline",
         "enabled": True,
@@ -3846,6 +3961,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt-outline",
         "enabled": True,
@@ -3895,6 +4012,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt-outline",
         "enabled": True,
@@ -3945,6 +4064,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt-outline",
         "enabled": True,
@@ -3994,6 +4115,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:lightning-bolt-outline",
         "enabled": True,
@@ -4048,6 +4171,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash-outline",
         "enabled": True,
@@ -4097,6 +4222,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash-outline",
         "enabled": True,
@@ -4147,6 +4274,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash-outline",
         "enabled": True,
@@ -4196,6 +4325,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash-outline",
         "enabled": True,
@@ -4246,6 +4377,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash-outline",
         "enabled": True,
@@ -4295,6 +4428,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash-outline",
         "enabled": True,
@@ -4345,6 +4480,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash-outline",
         "enabled": True,
@@ -4394,6 +4531,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash-outline",
         "enabled": True,
@@ -4444,6 +4583,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash-outline",
         "enabled": True,
@@ -4493,6 +4634,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash-outline",
         "enabled": True,
@@ -4543,6 +4686,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash-outline",
         "enabled": True,
@@ -4592,6 +4737,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash-outline",
         "enabled": True,
@@ -4642,6 +4789,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash-outline",
         "enabled": True,
@@ -4691,6 +4840,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash-outline",
         "enabled": True,
@@ -4745,6 +4896,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash",
         "enabled": True,
@@ -4794,6 +4947,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash",
         "enabled": True,
@@ -4844,6 +4999,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash",
         "enabled": True,
@@ -4893,6 +5050,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash",
         "enabled": True,
@@ -4943,6 +5102,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash",
         "enabled": True,
@@ -4992,6 +5153,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash",
         "enabled": True,
@@ -5042,6 +5205,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash",
         "enabled": True,
@@ -5091,6 +5256,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash",
         "enabled": True,
@@ -5141,6 +5308,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash",
         "enabled": True,
@@ -5190,6 +5359,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash",
         "enabled": True,
@@ -5240,6 +5411,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash",
         "enabled": True,
@@ -5289,6 +5462,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash",
         "enabled": True,
@@ -5339,6 +5514,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash",
         "enabled": True,
@@ -5388,6 +5565,8 @@ NUMBER_TYPES = [
         "max": 59.0,
         "step": 0.1,
         "unit": "V",
+        # Scales with the battery voltage class (12/24/48 V).
+        "battery_voltage": True,
         "multiplier": 10,
         "icon": "mdi:flash",
         "enabled": True,

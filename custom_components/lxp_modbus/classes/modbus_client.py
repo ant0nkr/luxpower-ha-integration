@@ -14,6 +14,7 @@ from ..const import (
     INITIAL_RETRY_DELAY,
     MAX_CACHED_DATA_FAILURES,
     MAX_RETRY_DELAY,
+    MODBUS_EXCEPTION_MESSAGES,
     READ_TIMEOUT,
     RESPONSE_OVERHEAD,
     RETRY_BACKOFF_MULTIPLIER,
@@ -364,17 +365,29 @@ class LxpModbusApiClient:
                 await asyncio.sleep(WRITE_RETRY_DELAY)
 
             try:
-                if await self._async_write_once(register, value, attempt):
-                    return True
+                result = await self._async_write_once(register, value, attempt)
             except Exception as ex:
                 _LOGGER.error("Exception during write attempt %d for register %s: %s",
                               attempt + 1, register, ex)
+                continue
+
+            if result is True:
+                return True
+            if result is None:
+                # The inverter understood the request and refused it. Repeating it
+                # will produce the same refusal, so stop instead of hammering the
+                # dongle two more times.
+                return False
 
         _LOGGER.error("Failed to write register %s after %d attempts.", register, self._connection_retries)
         return False
 
-    async def _async_write_once(self, register: int, value: int, attempt: int) -> bool:
-        """Perform a single write attempt and confirm it was applied."""
+    async def _async_write_once(self, register: int, value: int, attempt: int) -> bool | None:
+        """Perform a single write attempt and confirm it was applied.
+
+        Returns True on a confirmed write, False when the attempt failed in a way
+        worth retrying, and None when the inverter explicitly rejected the write.
+        """
         async with self._lock:
             _LOGGER.debug("Write attempt %s/%s for register %s with value %s",
                           attempt + 1, self._connection_retries, register, value)
@@ -417,6 +430,20 @@ class LxpModbusApiClient:
                 return False
 
             response = LxpResponse(response_buf)
+
+            # A function code with the high bit set is a Modbus exception: the
+            # inverter received the write and refused it. Report why rather than
+            # calling it a confirmation mismatch, which reads like our own bug.
+            if response.device_function >= 0x80 or response.exception:
+                reason = MODBUS_EXCEPTION_MESSAGES.get(
+                    response.exception, f"unknown exception code {response.exception}"
+                )
+                _LOGGER.error(
+                    "The inverter rejected the write of value %s to register %s: %s. %s",
+                    value, register, reason, response.info,
+                )
+                return None
+
             if response.packet_error:
                 _LOGGER.warning("Write attempt %s failed: Inverter returned a packet error. %s",
                                 attempt + 1, response.info)

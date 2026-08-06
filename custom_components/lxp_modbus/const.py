@@ -25,6 +25,7 @@ CONF_REGISTER_BLOCK_SIZE = "register_block_size"
 CONF_CONNECTION_RETRIES = "connection_retries"
 CONF_ENABLE_DEVICE_GROUPING = "enable_device_grouping"
 CONF_BATTERY_ENTITIES = "battery_entities"
+CONF_BATTERY_VOLTAGE_CLASS = "battery_voltage_class"
 
 INTEGRATION_TITLE = "LuxPower Inverter (Modbus)"
 
@@ -38,6 +39,13 @@ DEFAULT_REGISTER_BLOCK_SIZE = 125
 DEFAULT_CONNECTION_RETRIES = 3
 DEFAULT_ENABLE_DEVICE_GROUPING = True
 DEFAULT_BATTERY_ENTITIES = "none"  # User must explicitly enable; not all batteries provide data
+
+# The voltage limits in the entity descriptions were all written for 48 V battery
+# systems. The newer lineup also has 12 V and 24 V models, where those limits are
+# meaningless: a 24 V user cannot set 25.6 V through a 38.5-52.0 V range.
+DEFAULT_BATTERY_VOLTAGE_CLASS = 48
+BATTERY_VOLTAGE_CLASSES = [12, 24, 48]
+REFERENCE_BATTERY_VOLTAGE_CLASS = 48  # what the declared ranges assume
 
 # Legacy firmware may only support smaller block sizes
 LEGACY_REGISTER_BLOCK_SIZE = 40
@@ -71,6 +79,21 @@ MAX_CACHED_DATA_FAILURES = 2
 
 # A register the inverter does not implement reads back with all bits set
 UNIMPLEMENTED_REGISTER_VALUE = 0xFFFF
+
+# Standard Modbus exception codes. The inverter answers a rejected write with the
+# function code OR'd with 0x80 and one of these; retrying such a write cannot help,
+# because the inverter has understood the request and refused it.
+MODBUS_EXCEPTION_MESSAGES = {
+    1: "illegal function - the inverter does not support this operation",
+    2: "illegal data address - this register is not writable on this model",
+    3: "illegal data value - the inverter rejected this value",
+    4: "device failure - the inverter reported an internal error",
+    5: "acknowledge - the inverter accepted the request but is still processing it",
+    6: "device busy - the inverter is busy, try again later",
+    8: "memory parity error",
+    10: "gateway path unavailable",
+    11: "gateway target device failed to respond",
+}
 
 # Hold registers hold configuration: they only change when something writes them,
 # so re-reading them on every poll doubles the request count for no new data. They

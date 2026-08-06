@@ -16,7 +16,8 @@
           "register_block_size": "Register Block Size",
           "connection_retries": "Connection Retry Attempts",
           "enable_device_grouping": "Enable Device Grouping",
-          "battery_entities": "Battery Entities"
+          "battery_entities": "Battery Entities",
+          "battery_voltage_class": "Battery Voltage (V)"
         },
         "data_description": {
           "host": "The IP address of your inverter's WiFi dongle.",
@@ -30,7 +31,8 @@
           "register_block_size": "Block size for register reads. Use 125 (default) for most inverters. Use 40 for older firmware that doesn't support larger reads.",
           "connection_retries": "Number of connection retry attempts before giving up (default is 3).",
           "enable_device_grouping": "Group entities into sub-devices (PV, Grid, EPS, Generator, Battery) for better organization.",
-          "battery_entities": "Set to 'none' to disable, 'auto' to auto-discover batteries, or enter comma-separated battery serial numbers."
+          "battery_entities": "Set to 'none' to disable, 'auto' to auto-discover batteries, or enter comma-separated battery serial numbers.",
+          "battery_voltage_class": "The nominal voltage of your battery bank: 12, 24 or 48 V. Voltage limits are written for 48 V systems and are scaled to match your battery."
         }
       }
     },
@@ -62,7 +64,8 @@
           "register_block_size": "Register Block Size",
           "connection_retries": "Connection Retry Attempts",
           "enable_device_grouping": "Enable Device Grouping",
-          "battery_entities": "Battery Entities"
+          "battery_entities": "Battery Entities",
+          "battery_voltage_class": "Battery Voltage (V)"
         },
         "data_description": {
           "host": "The IP address of your inverter's WiFi dongle.",
@@ -76,7 +79,8 @@
           "register_block_size": "Block size for register reads. Use 125 (default) for most inverters. Use 40 for older firmware that doesn't support larger reads.",
           "connection_retries": "Number of connection retry attempts before giving up (default is 3).",
           "enable_device_grouping": "Group entities into sub-devices (PV, Grid, EPS, Generator, Battery) for better organization.",
-          "battery_entities": "Set to 'none' to disable, 'auto' to auto-discover batteries, or enter comma-separated battery serial numbers."
+          "battery_entities": "Set to 'none' to disable, 'auto' to auto-discover batteries, or enter comma-separated battery serial numbers.",
+          "battery_voltage_class": "The nominal voltage of your battery bank: 12, 24 or 48 V. Voltage limits are written for 48 V systems and are scaled to match your battery."
         }
       }
     },

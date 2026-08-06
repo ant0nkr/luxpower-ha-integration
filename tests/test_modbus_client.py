@@ -410,6 +410,10 @@ class TestLxpModbusApiClient:
             with patch('custom_components.lxp_modbus.classes.modbus_client.LxpResponse') as mock_response_class:
                 mock_response = MagicMock()
                 mock_response.packet_error = False
+                # A real response always carries these; without them the mock looks
+                # like a Modbus exception reply.
+                mock_response.device_function = 6
+                mock_response.exception = 0
                 mock_response.parsed_values_dictionary = {100: 500}
                 mock_response_class.return_value = mock_response
                 
@@ -446,6 +450,10 @@ class TestLxpModbusApiClient:
             with patch('custom_components.lxp_modbus.classes.modbus_client.LxpResponse') as mock_response_class:
                 mock_response = MagicMock()
                 mock_response.packet_error = False
+                # A real response always carries these; without them the mock looks
+                # like a Modbus exception reply.
+                mock_response.device_function = 6
+                mock_response.exception = 0
                 mock_response.parsed_values_dictionary = {100: 500}
                 mock_response_class.return_value = mock_response
                 
@@ -466,6 +474,10 @@ class TestLxpModbusApiClient:
             with patch('custom_components.lxp_modbus.classes.modbus_client.LxpResponse') as mock_response_class:
                 mock_response = MagicMock()
                 mock_response.packet_error = False
+                # A real response always carries these; without them the mock looks
+                # like a Modbus exception reply.
+                mock_response.device_function = 6
+                mock_response.exception = 0
                 mock_response.parsed_values_dictionary = {100: 600}  # Different value than requested
                 mock_response_class.return_value = mock_response
                 

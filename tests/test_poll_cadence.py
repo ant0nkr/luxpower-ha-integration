@@ -86,7 +86,8 @@ class TestHoldPollCadence:
         with patch('asyncio.open_connection', return_value=(reader, writer)):
             with patch('custom_components.lxp_modbus.classes.modbus_client.LxpResponse') as response:
                 response.return_value = MagicMock(
-                    packet_error=False, parsed_values_dictionary={100: 500}
+                    packet_error=False, device_function=6, exception=0,
+                    parsed_values_dictionary={100: 500},
                 )
                 assert await client.async_write_register(100, 500) is True
 

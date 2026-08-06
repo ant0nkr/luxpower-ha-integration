@@ -103,20 +103,9 @@ SWITCH_TYPES = [
         "master_only": True,
         "device_group": "Grid",
     },
-    # Register 22: H_FUNCTION_ENABLE_2_AND_PV_START_VOLT
-    {
-        "name": "Feed-In Grid",
-        "register": H_FUNCTION_ENABLE_2_AND_PV_START_VOLT, # 22
-        "register_type": "hold",
-        "extract": lambda reg: get_bits(reg, 15, 1),
-        "compose": lambda orig, value: set_bits(orig, 15, 1, value),
-        "icon": "mdi:transmission-tower-export",
-        "device_class": "switch",
-        "enabled": True,
-        "visible": True,
-        "master_only": True,
-        "device_group": "Grid",
-    },
+    # Register 22 holds the PV start voltage and has no bit 15 flag. The grid export
+    # control that used to live here is the "Grid Export" switch above (register 21,
+    # bit 15); writing bit 15 of register 22 corrupted the PV start voltage instead.
     # Register 110: H_FUNCTION_ENABLE_3
     {
         "name": "Fast Zero Export",
