@@ -2534,6 +2534,23 @@ NUMBER_TYPES = [
         "master_only": True,
     },
     {
+        # Register 22 in full. It previously backed a "Feed-In Grid" switch that
+        # wrote bit 15, which corrupted this voltage.
+        "name": "Start PV Voltage",
+        "register": H_START_PV_VOLT,
+        "register_type": "hold",
+        "min": 90.0,
+        "max": 500.0,
+        "step": 0.1,
+        "unit": "V",
+        "multiplier": 10,
+        "icon": "mdi:solar-panel",
+        "enabled": True,
+        "visible": True,
+        "master_only": False,
+        "device_group": "PV",
+    },
+    {
         "name": "Start PV Power",
         "register": H_START_PV_POWER,
         "register_type": "hold",

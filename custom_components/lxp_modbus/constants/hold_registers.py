@@ -48,7 +48,9 @@ H_FUNCTION_ENABLE_1 = 21
 # Bit 15: FeedInGridEn - Grid Export enable
 
 # --- Grid & Power Settings ---
-H_FUNCTION_ENABLE_2_AND_PV_START_VOLT = 22 # Combined register: Bit 15=FeedInGridEn, Bits 0-14=StartPVVolt (Unit: 0.1V, Range: 900-5000).
+# The whole register is the PV start voltage. FeedInGridEn is bit 15 of register 21
+# (see the FuncEn bit list above), not a flag packed into this register.
+H_START_PV_VOLT = 22 # PV working starting voltage (Unit: 0.1V, Range: 900-5000).
 H_CONNECT_TIME = 23 # Waiting time of on-grid (Unit: s, Range: 30-600).
 H_RECONNECT_TIME = 24 # Waiting time of Reconnect on-grid (Unit: s, Range: 0-900).
 H_GRID_VOLT_CONN_LOW = 25 # The lower limit of the allowed on-grid voltage (Unit: 0.1V).

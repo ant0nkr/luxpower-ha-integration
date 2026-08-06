@@ -18,6 +18,12 @@ class LxpRequestBuilder:
             raise ValueError("dongle_serial must be 10 bytes")
         if len(serial_number) != 10:
             raise ValueError("serial_number must be 10 bytes")
+        # to_bytes() raises "can't convert negative int to unsigned" for these, which
+        # surfaced as an unexplained total polling failure rather than a bad request.
+        if not 0 <= start_register <= 0xFFFF:
+            raise ValueError(f"start_register out of range: {start_register}")
+        if not 1 <= register_count <= 0xFFFF:
+            raise ValueError(f"register_count out of range: {register_count}")
 
         buf = bytearray()
         buf += LxpRequestBuilder.PREFIX

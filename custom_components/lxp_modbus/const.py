@@ -72,6 +72,21 @@ MAX_CACHED_DATA_FAILURES = 2
 # A register the inverter does not implement reads back with all bits set
 UNIMPLEMENTED_REGISTER_VALUE = 0xFFFF
 
+# Standard Modbus exception codes. The inverter answers a rejected write with the
+# function code OR'd with 0x80 and one of these; retrying such a write cannot help,
+# because the inverter has understood the request and refused it.
+MODBUS_EXCEPTION_MESSAGES = {
+    1: "illegal function - the inverter does not support this operation",
+    2: "illegal data address - this register is not writable on this model",
+    3: "illegal data value - the inverter rejected this value",
+    4: "device failure - the inverter reported an internal error",
+    5: "acknowledge - the inverter accepted the request but is still processing it",
+    6: "device busy - the inverter is busy, try again later",
+    8: "memory parity error",
+    10: "gateway path unavailable",
+    11: "gateway target device failed to respond",
+}
+
 # Hold registers hold configuration: they only change when something writes them,
 # so re-reading them on every poll doubles the request count for no new data. They
 # are refreshed every Nth poll, and always immediately after a successful write.
