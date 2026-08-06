@@ -4,7 +4,8 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from .const import (
     DOMAIN,
@@ -102,7 +103,44 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Forward the setup to all platforms (sensor, number, etc.)
     await hass.config_entries.async_forward_entry_setups(entry, platforms_to_load)
 
+    # Only safe once every platform has registered its entities, and only when all
+    # platforms were loaded: read-only mode skips the writable platforms, so a group
+    # made up solely of switches/numbers/selects would look empty and be pruned.
+    if not is_read_only:
+        _async_prune_empty_devices(hass, entry)
+
     return True
+
+
+@callback
+def _async_prune_empty_devices(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Drop sub-devices left behind when a device_group is renamed or removed.
+
+    Entities move to the new sub-device, but the old one stays registered against
+    this entry forever and shows up in the UI with zero entities.
+    """
+    dev_reg = dr.async_get(hass)
+    ent_reg = er.async_get(hass)
+    main_device_id = (DOMAIN, entry.entry_id)
+
+    for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
+        if main_device_id in device.identifiers:
+            continue  # Never touch the parent inverter device.
+        # Disabled entities still belong to their group, so they must count here.
+        if er.async_entries_for_device(ent_reg, device.id, include_disabled_entities=True):
+            continue
+        _LOGGER.debug("Removing empty sub-device '%s'", device.name)
+        dev_reg.async_remove_device(device.id)
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, entry: ConfigEntry, device: dr.DeviceEntry
+) -> bool:
+    """Let the user delete a sub-device from the UI once it has no entities left."""
+    ent_reg = er.async_get(hass)
+    return not er.async_entries_for_device(
+        ent_reg, device.id, include_disabled_entities=True
+    )
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
