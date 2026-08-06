@@ -8,7 +8,7 @@ from ..constants.battery_registers import *
 from ..constants.fault_codes import FAULT_CODES
 from ..constants.warning_codes import WARNING_CODES
 from ..const import CONF_RATED_POWER
-from ..utils import decode_bitmask_to_string, get_highest_set_bit
+from ..utils import decode_bitmask_to_string, get_highest_set_bit, sum_pv_registers
 
 SENSOR_TYPES = [
     # --- Calculated Sensors ---
@@ -459,9 +459,12 @@ SENSOR_TYPES = [
         "name": "PV Power",
         "register_type": "calculated",
         "depends_on": [I_PPV1, I_PPV2, I_PPV3, I_PPV4, I_PPV5, I_PPV6],
-        "extract": lambda registers, entry: (
-            registers.get(I_PPV1, 0) + registers.get(I_PPV2, 0) + registers.get(I_PPV3, 0)
-            + registers.get(I_PPV4, 0) + registers.get(I_PPV5, 0) + registers.get(I_PPV6, 0)
+        # Only strings the inverter reports as present are summed; unused inputs can
+        # report stale non-zero values that inflate the total.
+        "extract_pv": lambda registers, strings: sum_pv_registers(
+            registers,
+            {1: I_PPV1, 2: I_PPV2, 3: I_PPV3, 4: I_PPV4, 5: I_PPV5, 6: I_PPV6},
+            strings,
         ),
         "unit": "W",
         "device_class": "power",
@@ -1333,9 +1336,11 @@ SENSOR_TYPES = [
         "name": "PV Energy Today",
         "register_type": "calculated",
         "depends_on": [I_EPV1_DAY, I_EPV2_DAY, I_EPV3_DAY, I_EPV4_DAY, I_EPV5_DAY, I_EPV6_DAY],
-        "extract": lambda registers, entry: (
-            registers.get(I_EPV1_DAY, 0) + registers.get(I_EPV2_DAY, 0) + registers.get(I_EPV3_DAY, 0)
-            + registers.get(I_EPV4_DAY, 0) + registers.get(I_EPV5_DAY, 0) + registers.get(I_EPV6_DAY, 0)
+        "extract_pv": lambda registers, strings: sum_pv_registers(
+            registers,
+            {1: I_EPV1_DAY, 2: I_EPV2_DAY, 3: I_EPV3_DAY,
+             4: I_EPV4_DAY, 5: I_EPV5_DAY, 6: I_EPV6_DAY},
+            strings,
         ),
         "unit": "kWh",
         "device_class": "energy",
@@ -2400,13 +2405,17 @@ SENSOR_TYPES = [
             I_EPV5_ALL_L, I_EPV5_ALL_H,
             I_EPV6_ALL_L, I_EPV6_ALL_H,
         ],
-        "extract": lambda registers, entry: (
-            ((registers.get(I_EPV1_ALL_H, 0) << 16) | registers.get(I_EPV1_ALL_L, 0))
-            + ((registers.get(I_EPV2_ALL_H, 0) << 16) | registers.get(I_EPV2_ALL_L, 0))
-            + ((registers.get(I_EPV3_ALL_H, 0) << 16) | registers.get(I_EPV3_ALL_L, 0))
-            + ((registers.get(I_EPV4_ALL_H, 0) << 16) | registers.get(I_EPV4_ALL_L, 0))
-            + ((registers.get(I_EPV5_ALL_H, 0) << 16) | registers.get(I_EPV5_ALL_L, 0))
-            + ((registers.get(I_EPV6_ALL_H, 0) << 16) | registers.get(I_EPV6_ALL_L, 0))
+        "extract_pv": lambda registers, strings: sum(
+            (registers.get(high, 0) << 16) | registers.get(low, 0)
+            for string, (low, high) in {
+                1: (I_EPV1_ALL_L, I_EPV1_ALL_H),
+                2: (I_EPV2_ALL_L, I_EPV2_ALL_H),
+                3: (I_EPV3_ALL_L, I_EPV3_ALL_H),
+                4: (I_EPV4_ALL_L, I_EPV4_ALL_H),
+                5: (I_EPV5_ALL_L, I_EPV5_ALL_H),
+                6: (I_EPV6_ALL_L, I_EPV6_ALL_H),
+            }.items()
+            if string in strings
         ),
         "unit": "kWh",
         "device_class": "energy",

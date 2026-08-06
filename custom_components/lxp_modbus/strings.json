@@ -16,7 +16,8 @@
           "connection_retries": "Connection Retry Attempts",
           "read_only": "Read Only Mode",
           "enable_device_grouping": "Enable Device Grouping",
-          "battery_entities": "Battery Entities (none/auto/serial numbers)"
+          "battery_entities": "Battery Entities (none/auto/serial numbers)",
+          "battery_voltage_class": "Battery Voltage (V)"
         }
       }
     },
@@ -46,7 +47,8 @@
           "connection_retries": "Connection Retry Attempts",
           "read_only": "Read Only Mode",
           "enable_device_grouping": "Enable Device Grouping",
-          "battery_entities": "Battery Entities (none/auto/serial numbers)"
+          "battery_entities": "Battery Entities (none/auto/serial numbers)",
+          "battery_voltage_class": "Battery Voltage (V)"
         }
       }
     },

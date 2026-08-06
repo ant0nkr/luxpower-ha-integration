@@ -18,6 +18,9 @@ from .const import (
     CONF_CONNECTION_RETRIES,
     CONF_ENABLE_DEVICE_GROUPING,
     CONF_BATTERY_ENTITIES,
+    CONF_BATTERY_VOLTAGE_CLASS,
+    BATTERY_VOLTAGE_CLASSES,
+    DEFAULT_BATTERY_VOLTAGE_CLASS,
     DEFAULT_POLL_INTERVAL,
     DEFAULT_ENTITY_PREFIX,
     DEFAULT_RATED_POWER,
@@ -117,6 +120,7 @@ class LxpModbusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required(CONF_CONNECTION_RETRIES, default=DEFAULT_CONNECTION_RETRIES): vol.All(int, vol.Range(min=1, max=10)),
             vol.Optional(CONF_ENABLE_DEVICE_GROUPING, default=DEFAULT_ENABLE_DEVICE_GROUPING): bool,
             vol.Optional(CONF_BATTERY_ENTITIES, default=DEFAULT_BATTERY_ENTITIES): str,
+            vol.Required(CONF_BATTERY_VOLTAGE_CLASS, default=DEFAULT_BATTERY_VOLTAGE_CLASS): vol.In(BATTERY_VOLTAGE_CLASSES),
         })
         return self.async_show_form(step_id="user", data_schema=self.add_suggested_values_to_schema(data_schema, user_input), errors=errors)
 
@@ -168,6 +172,7 @@ class LxpModbusOptionsFlow(config_entries.OptionsFlow):
             vol.Required(CONF_CONNECTION_RETRIES, default=current_config.get(CONF_CONNECTION_RETRIES, DEFAULT_CONNECTION_RETRIES)): vol.All(int, vol.Range(min=1, max=10)),
             vol.Optional(CONF_ENABLE_DEVICE_GROUPING, default=current_config.get(CONF_ENABLE_DEVICE_GROUPING, DEFAULT_ENABLE_DEVICE_GROUPING)): bool,
             vol.Optional(CONF_BATTERY_ENTITIES, default=current_config.get(CONF_BATTERY_ENTITIES, DEFAULT_BATTERY_ENTITIES)): str,
+            vol.Required(CONF_BATTERY_VOLTAGE_CLASS, default=current_config.get(CONF_BATTERY_VOLTAGE_CLASS, DEFAULT_BATTERY_VOLTAGE_CLASS)): vol.In(BATTERY_VOLTAGE_CLASSES),
         })
 
         return self.async_show_form(

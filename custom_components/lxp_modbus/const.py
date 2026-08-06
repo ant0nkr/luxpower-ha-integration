@@ -25,6 +25,7 @@ CONF_REGISTER_BLOCK_SIZE = "register_block_size"
 CONF_CONNECTION_RETRIES = "connection_retries"
 CONF_ENABLE_DEVICE_GROUPING = "enable_device_grouping"
 CONF_BATTERY_ENTITIES = "battery_entities"
+CONF_BATTERY_VOLTAGE_CLASS = "battery_voltage_class"
 
 INTEGRATION_TITLE = "LuxPower Inverter (Modbus)"
 
@@ -38,6 +39,13 @@ DEFAULT_REGISTER_BLOCK_SIZE = 125
 DEFAULT_CONNECTION_RETRIES = 3
 DEFAULT_ENABLE_DEVICE_GROUPING = True
 DEFAULT_BATTERY_ENTITIES = "none"  # User must explicitly enable; not all batteries provide data
+
+# The voltage limits in the entity descriptions were all written for 48 V battery
+# systems. The newer lineup also has 12 V and 24 V models, where those limits are
+# meaningless: a 24 V user cannot set 25.6 V through a 38.5-52.0 V range.
+DEFAULT_BATTERY_VOLTAGE_CLASS = 48
+BATTERY_VOLTAGE_CLASSES = [12, 24, 48]
+REFERENCE_BATTERY_VOLTAGE_CLASS = 48  # what the declared ranges assume
 
 # Legacy firmware may only support smaller block sizes
 LEGACY_REGISTER_BLOCK_SIZE = 40

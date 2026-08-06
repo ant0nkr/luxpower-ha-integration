@@ -5,8 +5,12 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     DOMAIN,
+    BATTERY_VOLTAGE_CLASSES,
+    CONF_BATTERY_VOLTAGE_CLASS,
     CONF_ENTITY_PREFIX,
+    DEFAULT_BATTERY_VOLTAGE_CLASS,
     DEFAULT_ENTITY_PREFIX,
+    REFERENCE_BATTERY_VOLTAGE_CLASS,
     UNIMPLEMENTED_REGISTER_VALUE,
 )
 from .entity import ModbusBridgeEntity
@@ -33,9 +37,12 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
         """Initialize the number entity."""
         super().__init__(coordinator, entry, desc, entity_prefix, api_client)
         
-        # Set number-specific attributes from the description
-        self._attr_native_min_value = desc["min"]
-        self._attr_native_max_value = desc["max"]
+        # Set number-specific attributes from the description. Battery voltage limits
+        # are written for 48 V systems, so they are rescaled for 12 V and 24 V models.
+        # The register scale (multiplier) is unaffected: the register is still 0.1 V.
+        voltage_factor = self._battery_voltage_factor(entry, desc)
+        self._attr_native_min_value = round(desc["min"] * voltage_factor, 1)
+        self._attr_native_max_value = round(desc["max"] * voltage_factor, 1)
         self._attr_native_step = desc.get("step", 1)
         # "" is not the same as no unit to Home Assistant
         self._attr_native_unit_of_measurement = desc.get("unit") or None
@@ -55,6 +62,28 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
         # A negative minimum means the register carries a signed value, so the
         # all-bits-set pattern is -1 rather than "not implemented".
         self._is_signed = self._attr_native_min_value < 0
+
+    @staticmethod
+    def _battery_voltage_factor(entry, desc: dict) -> float:
+        """Return the factor to rescale a battery voltage limit by.
+
+        1.0 for anything that is not a battery voltage, so grid, PV, bus and
+        per-cell limits are never touched.
+        """
+        if not desc.get("battery_voltage"):
+            return 1.0
+
+        configured = entry.data.get(
+            CONF_BATTERY_VOLTAGE_CLASS, DEFAULT_BATTERY_VOLTAGE_CLASS
+        )
+        if configured not in BATTERY_VOLTAGE_CLASSES:
+            _LOGGER.warning(
+                "Unknown battery voltage class %s, using %s V",
+                configured, DEFAULT_BATTERY_VOLTAGE_CLASS,
+            )
+            configured = DEFAULT_BATTERY_VOLTAGE_CLASS
+
+        return configured / REFERENCE_BATTERY_VOLTAGE_CLASS
 
     @property
     def native_value(self) -> float | None:
