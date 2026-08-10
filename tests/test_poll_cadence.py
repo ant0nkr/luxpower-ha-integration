@@ -73,8 +73,11 @@ class TestHoldPollCadence:
         assert decisions == [False] * (HOLD_REGISTER_POLL_EVERY - 1)
 
     @pytest.mark.asyncio
-    async def test_successful_write_requests_a_hold_refresh(self, ):
-        """The client itself flags the refresh, so every platform benefits."""
+    async def test_write_whose_confirmation_read_fails_requests_a_hold_refresh(self):
+        """A write is normally confirmed inline; the cadence is the fallback.
+
+        See test_write_confirmation.py for the inline path.
+        """
         client = make_client(connection_retries=1)
         reader, writer = AsyncMock(spec=asyncio.StreamReader), AsyncMock(spec=asyncio.StreamWriter)
         writer.write = MagicMock()
@@ -89,6 +92,8 @@ class TestHoldPollCadence:
                     packet_error=False, device_function=6, exception=0,
                     parsed_values_dictionary={100: 500},
                 )
+                # The mocked response is not a valid read reply, so the inline
+                # confirmation read comes back empty.
                 assert await client.async_write_register(100, 500) is True
 
         assert client._force_hold_poll is True

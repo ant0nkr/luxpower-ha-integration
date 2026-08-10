@@ -89,13 +89,17 @@ class ModbusBridgeEntity(CoordinatorEntity):
             if not await self._api_client.async_write_register(self._register, value_to_write):
                 return False
 
-            # Show the new value immediately, but treat it as provisional: only the
-            # next poll proves what the inverter actually stored.
             registers[self._register] = value_to_write
             self.async_write_ha_state()
 
-        # Requested outside the lock; the coordinator debounces concurrent requests.
-        await self.coordinator.async_request_refresh()
+            # The client confirmed the write and re-read the affected settings block
+            # on the same connection, so publish that rather than asking for a fresh
+            # poll. A poll re-reads every register block, which kept the service call
+            # blocked for tens of seconds after the inverter had already applied the
+            # change. Publishing inside the lock also means the next write on a shared
+            # register composes from confirmed values instead of the local guess.
+            self.coordinator.async_set_updated_data(self._api_client.get_cached_data())
+
         return True
 
     @callback

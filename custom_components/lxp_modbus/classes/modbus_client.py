@@ -416,56 +416,95 @@ class LxpModbusApiClient:
                 _LOGGER.warning("Write attempt %s for register %s timed out waiting for acknowledgement",
                                 attempt + 1, register)
                 return False
+            else:
+                result = self._evaluate_write_response(response_buf, register, value, attempt)
+                if result is True:
+                    # Reuse the open connection: confirming here costs one request,
+                    # where a full poll costs one per register block.
+                    await self._async_reread_hold_block(writer, reader, register)
+                return result
             finally:
                 await self._connection_manager.async_close(writer)
 
-            _LOGGER.debug(
-                "Modbus WRITE: Sent to reg %s, value %s, resp: %s",
-                register, value, response_buf.hex() if response_buf else "None"
-            )
+    def _evaluate_write_response(self, response_buf: bytes, register: int, value: int,
+                                 attempt: int) -> bool | None:
+        """Judge a write acknowledgement packet."""
+        _LOGGER.debug(
+            "Modbus WRITE: Sent to reg %s, value %s, resp: %s",
+            register, value, response_buf.hex() if response_buf else "None"
+        )
 
-            # --- Response Validation ---
-            if not response_buf:
-                _LOGGER.warning("Write attempt %d failed: Response not received", attempt + 1)
-                return False
-
-            response = LxpResponse(response_buf)
-
-            # A function code with the high bit set is a Modbus exception: the
-            # inverter received the write and refused it. Report why rather than
-            # calling it a confirmation mismatch, which reads like our own bug.
-            if response.device_function >= 0x80 or response.exception:
-                reason = MODBUS_EXCEPTION_MESSAGES.get(
-                    response.exception, f"unknown exception code {response.exception}"
-                )
-                _LOGGER.error(
-                    "The inverter rejected the write of value %s to register %s: %s. %s",
-                    value, register, reason, response.info,
-                )
-                return None
-
-            if response.packet_error:
-                _LOGGER.warning("Write attempt %s failed: Inverter returned a packet error. %s",
-                                attempt + 1, response.info)
-                return False
-
-            response_dict = response.parsed_values_dictionary
-            if register in response_dict:
-                received_value = response_dict.get(register)
-                if received_value == value:
-                    _LOGGER.info("Successfully wrote register %s with value %s.", register, value)
-                    # Settings are not read on every poll, so make sure the next one
-                    # picks up what the inverter actually stored.
-                    self.request_hold_refresh()
-                    return True
-
-                _LOGGER.warning("Write attempt %s failed: Confirmation mismatch, sent=%s received=%s",
-                                attempt + 1, value, received_value)
-            else:
-                _LOGGER.warning("Write attempt %s failed: Confirmation mismatch, written register %s not received on confirmation. %s",
-                                attempt + 1, register, response.info)
-
+        if not response_buf:
+            _LOGGER.warning("Write attempt %d failed: Response not received", attempt + 1)
             return False
+
+        response = LxpResponse(response_buf)
+
+        # A function code with the high bit set is a Modbus exception: the
+        # inverter received the write and refused it. Report why rather than
+        # calling it a confirmation mismatch, which reads like our own bug.
+        if response.device_function >= 0x80 or response.exception:
+            reason = MODBUS_EXCEPTION_MESSAGES.get(
+                response.exception, f"unknown exception code {response.exception}"
+            )
+            _LOGGER.error(
+                "The inverter rejected the write of value %s to register %s: %s. %s",
+                value, register, reason, response.info,
+            )
+            return None
+
+        if response.packet_error:
+            _LOGGER.warning("Write attempt %s failed: Inverter returned a packet error. %s",
+                            attempt + 1, response.info)
+            return False
+
+        response_dict = response.parsed_values_dictionary
+        if register in response_dict:
+            received_value = response_dict.get(register)
+            if received_value == value:
+                _LOGGER.info("Successfully wrote register %s with value %s.", register, value)
+                # The acknowledgement echoes what the inverter stored, so the cache
+                # can hold a confirmed value without waiting for any read.
+                self._last_good_hold_regs[register] = received_value
+                return True
+
+            _LOGGER.warning("Write attempt %s failed: Confirmation mismatch, sent=%s received=%s",
+                            attempt + 1, value, received_value)
+        else:
+            _LOGGER.warning("Write attempt %s failed: Confirmation mismatch, written register %s not received on confirmation. %s",
+                            attempt + 1, register, response.info)
+
+        return False
+
+    async def _async_reread_hold_block(self, writer, reader, register: int) -> None:
+        """Re-read the settings block holding ``register`` on the write connection.
+
+        A write can move sibling registers the inverter derives from it, so the
+        block is re-read rather than trusting the acknowledgement alone. Only the
+        one block is read: a full settings pass costs a request per block and is
+        what made a write take tens of seconds to show up.
+        """
+        block_start = (register // self._block_size) * self._block_size
+
+        try:
+            reg_block = await self.async_request_registers(writer, reader, block_start, "hold", 3)
+        except (asyncio.TimeoutError, ConnectionResetError, OSError) as err:
+            _LOGGER.debug("Post-write re-read of hold %s failed (%s); "
+                          "deferring to the next poll.", block_start, err)
+            self.request_hold_refresh()
+            return
+
+        if reg_block:
+            self._last_good_hold_regs.update(reg_block)
+            return
+
+        _LOGGER.debug("Post-write re-read of hold block %s returned nothing; "
+                      "deferring to the next poll.", block_start)
+        self.request_hold_refresh()
+
+    def get_cached_data(self) -> dict:
+        """Return the current known-good dataset without contacting the inverter."""
+        return self._snapshot()
 
     def get_connection_stats(self) -> dict:
         """Return connection statistics for diagnostics."""

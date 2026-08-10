@@ -418,10 +418,12 @@ class TestLxpModbusApiClient:
                 mock_response_class.return_value = mock_response
                 
                 result = await client.async_write_register(100, 500)
-                
+
                 assert result is True
-                writer.write.assert_called_once()
-                writer.drain.assert_called_once()
+                # The write itself, then the settings block re-read that confirms it
+                # on the same connection.
+                assert writer.write.call_count == 2
+                assert writer.drain.call_count == 2
 
     @pytest.mark.asyncio
     async def test_async_write_register_failure(self, client):
