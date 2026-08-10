@@ -18,9 +18,19 @@ ENTRY_ID = "test_entry_id"
 
 @pytest.fixture
 def api_client():
-    """Mock API client that reports successful writes."""
+    """Mock API client that confirms writes and caches them like the real one."""
+    cache = {"hold": {}, "input": {}, "battery": {}}
+
+    async def confirmed_write(register, value):
+        cache["hold"][register] = value
+        return True
+
     client = AsyncMock()
-    client.async_write_register = AsyncMock(return_value=True)
+    client.async_write_register = AsyncMock(side_effect=confirmed_write)
+    client.get_cached_data = MagicMock(
+        side_effect=lambda: {key: dict(values) for key, values in cache.items()}
+    )
+    client.cache = cache
     return client
 
 
@@ -40,6 +50,10 @@ def coordinator():
     coord = MagicMock()
     coord.data = {"hold": {}, "input": {}}
     coord.async_request_refresh = AsyncMock()
+    # Mirrors Home Assistant: published data replaces what entities read.
+    coord.async_set_updated_data = MagicMock(
+        side_effect=lambda data: setattr(coord, "data", data)
+    )
     coord.hass = MagicMock()
     coord.hass.data = {DOMAIN: {ENTRY_ID: {"write_lock": asyncio.Lock()}}}
     return coord
@@ -197,8 +211,8 @@ class TestSharedWritePath:
     """Behaviour of ModbusBridgeEntity._async_write_register."""
 
     @pytest.mark.asyncio
-    async def test_write_updates_cache_and_requests_refresh(self, coordinator, entry, api_client):
-        """A successful write is shown immediately and then re-checked against the inverter."""
+    async def test_write_publishes_what_the_inverter_confirmed(self, coordinator, entry, api_client):
+        """The client already confirmed the write, so its cache is published."""
         coordinator.data["hold"][21] = 0
         entity = make_switch(coordinator, entry, api_client, SWITCH_A_DESC)
 
@@ -207,7 +221,17 @@ class TestSharedWritePath:
         api_client.async_write_register.assert_awaited_once_with(21, 1)
         assert coordinator.data["hold"][21] == 1
         entity.async_write_ha_state.assert_called_once()
-        coordinator.async_request_refresh.assert_awaited_once()
+        coordinator.async_set_updated_data.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_write_does_not_wait_for_a_poll(self, coordinator, entry, api_client):
+        """Issue #154: the refresh re-read every block and blocked the call ~30 s."""
+        coordinator.data["hold"][21] = 0
+        entity = make_switch(coordinator, entry, api_client, SWITCH_A_DESC)
+
+        await entity.async_turn_on()
+
+        coordinator.async_request_refresh.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_failed_write_leaves_cache_untouched(self, coordinator, entry, api_client):
@@ -220,7 +244,7 @@ class TestSharedWritePath:
 
         assert coordinator.data["hold"][21] == 0
         entity.async_write_ha_state.assert_not_called()
-        coordinator.async_request_refresh.assert_not_awaited()
+        coordinator.async_set_updated_data.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_missing_api_client_is_reported_not_raised(self, coordinator, entry):
@@ -229,7 +253,7 @@ class TestSharedWritePath:
 
         await entity.async_turn_on()
 
-        coordinator.async_request_refresh.assert_not_awaited()
+        coordinator.async_set_updated_data.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_concurrent_writes_on_shared_register_do_not_clobber(
@@ -247,6 +271,7 @@ class TestSharedWritePath:
             # Force the two writes to overlap if they are not serialised.
             await asyncio.sleep(0)
             written.append((register, value))
+            api_client.cache["hold"][register] = value
             return True
 
         api_client.async_write_register = AsyncMock(side_effect=slow_write)
