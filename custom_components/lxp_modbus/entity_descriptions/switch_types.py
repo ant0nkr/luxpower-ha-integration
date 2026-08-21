@@ -207,6 +207,19 @@ SWITCH_TYPES = [
     },
     # Register 179: H_FUNCTION_ENABLE_4
     {
+        "name": "AC CT Direction Reversed",
+        "register": H_FUNCTION_ENABLE_4, # 179
+        "register_type": "hold",
+        "extract": lambda reg: get_bits(reg, 0, 1),
+        "compose": lambda orig, value: set_bits(orig, 0, 1, value),
+        "icon": "mdi:swap-horizontal",
+        "device_class": "switch",
+        "enabled": True,
+        "visible": True,
+        "master_only": True,
+        "device_group": "Grid",
+    },
+    {
         "name": "Volt-Watt Function",
         "register": H_FUNCTION_ENABLE_4, # 179
         "register_type": "hold",
