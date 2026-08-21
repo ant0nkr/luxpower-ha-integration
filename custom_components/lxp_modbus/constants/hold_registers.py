@@ -292,7 +292,7 @@ H_AC_COUPLE_START_VOLT = 222 # AC Couple Start Volt (Unit: 0.1V, Range: 400-595)
 H_AC_COUPLE_END_VOLT = 223 # AC Couple End Volt (Unit: 0.1V, Range: 420-800).
 H_LCD_CONFIG = 224 # Contains LCD Version, Screen Type, ODM, and Machine Model Code.
 H_LCD_PASSWORD = 225 # Password for LCD Advanced page (Range: 0-65535).
-# Register 226 is not defined in the Hold Register table.
+H_GRID_CT_CONNECTION = 226 # Bit 2: Grid CT Connection Enable (observed on SNA6000).
 H_BAT_STOP_CHARGE_SOC = 227 # SOC to stop charging battery (Unit: %, Range: 10-101).
 H_BAT_STOP_CHARGE_VOLT = 228 # Voltage to stop charging battery (Unit: 0.1V, Range: 400-595).
 # Register 229 is not defined in the Hold Register table.
