@@ -88,6 +88,80 @@ SENSOR_TYPES = [
         "master_only": False,
         "device_group": "Grid",
     },
+    {
+        "name": "Home Consumption Today Calculated",
+        "register_type": "calculated",
+        "depends_on": [
+            I_ETOUSER_DAY,
+            I_EINV_DAY,
+            I_EREC_DAY,
+            I_ETOGRID_DAY,
+            I_EEPS_DAY,
+        ],
+        "unit": "kWh",
+        "device_class": "energy",
+        "state_class": "total_increasing",
+        "icon": "mdi:home-lightning-bolt",
+        "suggested_display_precision": 1,
+        "enabled": True,
+        "visible": True,
+        "extract": lambda registers, entry: (
+            registers.get(I_ETOUSER_DAY, 0)
+            + registers.get(I_EINV_DAY, 0)
+            - registers.get(I_EREC_DAY, 0)
+            - registers.get(I_ETOGRID_DAY, 0)
+            + registers.get(I_EEPS_DAY, 0)
+        ),
+        "scale": 0.1,
+        "master_only": False,
+    },
+    {
+        "name": "Home Consumption Total Calculated",
+        "register_type": "calculated",
+        "depends_on": [
+            I_ETOUSER_ALL_L,
+            I_ETOUSER_ALL_H,
+            I_EINV_ALL_L,
+            I_EINV_ALL_H,
+            I_EREC_ALL_L,
+            I_EREC_ALL_H,
+            I_ETOGRID_ALL_L,
+            I_ETOGRID_ALL_H,
+            I_EEPS_ALL_L,
+            I_EEPS_ALL_H,
+        ],
+        "unit": "kWh",
+        "device_class": "energy",
+        "state_class": "total_increasing",
+        "icon": "mdi:home-lightning-bolt",
+        "suggested_display_precision": 1,
+        "enabled": True,
+        "visible": True,
+        "extract": lambda registers, entry: (
+            (
+                (registers.get(I_ETOUSER_ALL_H, 0) << 16)
+                | registers.get(I_ETOUSER_ALL_L, 0)
+            )
+            + (
+                (registers.get(I_EINV_ALL_H, 0) << 16)
+                | registers.get(I_EINV_ALL_L, 0)
+            )
+            - (
+                (registers.get(I_EREC_ALL_H, 0) << 16)
+                | registers.get(I_EREC_ALL_L, 0)
+            )
+            - (
+                (registers.get(I_ETOGRID_ALL_H, 0) << 16)
+                | registers.get(I_ETOGRID_ALL_L, 0)
+            )
+            + (
+                (registers.get(I_EEPS_ALL_H, 0) << 16)
+                | registers.get(I_EEPS_ALL_L, 0)
+            )
+        ),
+        "scale": 0.1,
+        "master_only": False,
+    },
 
     # --- State Sensors ---
     {
