@@ -270,6 +270,20 @@ SWITCH_TYPES = [
         "master_only": True,
         "device_group": "Smart Load",
     },
+    # Register 226: H_GRID_CT_CONNECTION
+    {
+        "name": "Grid CT Connection",
+        "register": H_GRID_CT_CONNECTION, # 226
+        "register_type": "hold",
+        "extract": lambda reg: get_bits(reg, 2, 1),
+        "compose": lambda orig, value: set_bits(orig, 2, 1, value),
+        "icon": "mdi:transmission-tower",
+        "device_class": "switch",
+        "enabled": True,
+        "visible": True,
+        "master_only": True,
+        "device_group": "Grid",
+    },
     # Register 233: H_FUNCTION_ENABLE_5
     {
         "name": "Quick Charge Start",
