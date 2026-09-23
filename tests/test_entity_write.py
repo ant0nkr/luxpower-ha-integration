@@ -57,7 +57,11 @@ def coordinator():
         side_effect=lambda data: setattr(coord, "data", data)
     )
     coord.hass = MagicMock()
-    coord.hass.data = {DOMAIN: {ENTRY_ID: {"write_lock": asyncio.Lock()}}}
+    coord.hass.data = {
+        DOMAIN: {
+            ENTRY_ID: {"write_lock": asyncio.Lock(), "main_device_id": "device-1"}
+        }
+    }
     return coord
 
 
@@ -343,6 +347,33 @@ class TestUnreadRegisterGuard:
         await entity.async_turn_on()
 
         coordinator.async_set_updated_data.assert_not_called()
+
+
+class TestSubDeviceLink:
+    """Issue #163: via_device is deprecated and removed in Home Assistant 2027.8."""
+
+    def test_sub_device_links_to_the_parent_device(self, coordinator, entry, api_client):
+        """Whichever spelling this core supports, the link must be present."""
+        entry.data = {"enable_device_grouping": True}
+        grouped_desc = dict(SWITCH_A_DESC, device_group="Battery")
+        entity = make_switch(coordinator, entry, api_client, grouped_desc)
+
+        info = entity.device_info
+
+        if "via_device_id" in info:
+            assert info["via_device_id"] == "device-1"
+        else:
+            assert info["via_device"] == (DOMAIN, ENTRY_ID)
+
+    def test_main_device_has_no_parent_link(self, coordinator, entry, api_client):
+        """The inverter itself is the root device."""
+        entry.data = {}
+        entity = make_switch(coordinator, entry, api_client, SWITCH_A_DESC)
+
+        info = entity.device_info
+
+        assert "via_device" not in info
+        assert "via_device_id" not in info
 
 
 class TestUnchangedStateSuppression:

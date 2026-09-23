@@ -9,6 +9,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from .const import (
     DOMAIN,
+    INTEGRATION_TITLE,
     PLATFORMS,
     CONF_HOST,
     CONF_PORT,
@@ -26,6 +27,7 @@ from .const import (
 )
 from .classes.modbus_client import LxpModbusApiClient
 from .coordinator import LxpModbusDataUpdateCoordinator
+from .utils import format_firmware_version
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,6 +86,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Home Assistant retry setup with its own backoff — do not swallow it.
     await coordinator.async_config_entry_first_refresh()
 
+    # Register the inverter device up front. Sub-devices link to it by device id,
+    # which only exists once the device is in the registry — leaving it to whichever
+    # entity happens to be added first would make the link depend on load order.
+    hass.data[DOMAIN][entry.entry_id]["main_device_id"] = _async_register_main_device(
+        hass, entry, coordinator
+    ).id
+
     # Determine which platforms to load based on the read-only setting
     settings = hass.data[DOMAIN][entry.entry_id]["settings"]
     is_read_only = settings.get(CONF_READ_ONLY, DEFAULT_READ_ONLY)
@@ -110,6 +119,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _async_prune_empty_devices(hass, entry)
 
     return True
+
+
+@callback
+def _async_register_main_device(
+    hass: HomeAssistant, entry: ConfigEntry, coordinator: LxpModbusDataUpdateCoordinator
+) -> dr.DeviceEntry:
+    """Create or update the parent inverter device."""
+    hold_registers = (coordinator.data or {}).get("hold", {})
+    return dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        name=entry.title or INTEGRATION_TITLE,
+        manufacturer="LuxpowerTek",
+        model=entry.data.get("model") or "Unknown",
+        serial_number=entry.data.get(CONF_INVERTER_SERIAL),
+        sw_version=format_firmware_version(hold_registers),
+    )
 
 
 @callback

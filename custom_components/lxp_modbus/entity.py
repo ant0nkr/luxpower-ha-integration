@@ -3,12 +3,18 @@ import logging
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, CoordinatorEntity
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import generate_entity_id
 from .utils import format_firmware_version
 from .const import DOMAIN, INTEGRATION_TITLE, CONF_INVERTER_SERIAL, CONF_ENABLE_DEVICE_GROUPING, DEFAULT_ENABLE_DEVICE_GROUPING
 from .constants.input_registers import I_MASTER_SLAVE_PARALLEL_STATUS
 
 _LOGGER = logging.getLogger(__name__)
+
+# Home Assistant 2026.8 deprecated DeviceInfo["via_device"] in favour of
+# "via_device_id" and will drop the old key in 2027.8. Both spellings have to work
+# while the minimum supported core is older than that.
+SUPPORTS_VIA_DEVICE_ID = "via_device_id" in getattr(DeviceInfo, "__annotations__", {})
 
 class ModbusBridgeEntity(CoordinatorEntity):
     """A base class for all LuxPower Modbus entities."""
@@ -176,16 +182,16 @@ class ModbusBridgeEntity(CoordinatorEntity):
 
         if device_group and enable_device_grouping:
             # Create sub-device grouped under main inverter
-            main_device_id = (DOMAIN, self._entry.entry_id)
             sub_device_id = (DOMAIN, f"{self._entry.entry_id}_{device_group}")
 
-            return {
+            device_info = {
                 "identifiers": {sub_device_id},
                 "name": f"{self._entry.title or INTEGRATION_TITLE} - {device_group}",
                 "manufacturer": "LuxpowerTek",
                 "model": self._entry.data.get("model") or "Unknown",
-                "via_device": main_device_id,  # Link to parent device
             }
+            device_info.update(self._parent_device_link())
+            return device_info
         else:
             # Main inverter device (either no device_group or grouping disabled)
             return {
@@ -196,6 +202,21 @@ class ModbusBridgeEntity(CoordinatorEntity):
                 "serial_number": self._entry.data.get(CONF_INVERTER_SERIAL),
                 "sw_version": firmware_version,
             }
+
+    def _parent_device_link(self) -> dict:
+        """Return the key linking a sub-device to the parent inverter device."""
+        if SUPPORTS_VIA_DEVICE_ID:
+            # Registered in async_setup_entry, so it is always present by the time
+            # an entity is added.
+            main_device_id = self.coordinator.hass.data[DOMAIN][
+                self._entry.entry_id
+            ].get("main_device_id")
+            if main_device_id:
+                return {"via_device_id": main_device_id}
+            _LOGGER.debug("Parent device id unavailable, leaving '%s' unlinked", self.name)
+            return {}
+
+        return {"via_device": (DOMAIN, self._entry.entry_id)}
 
     @property
     def is_master(self) -> bool:
