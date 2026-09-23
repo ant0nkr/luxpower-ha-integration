@@ -8,7 +8,7 @@ from ..constants.battery_registers import *
 from ..constants.fault_codes import FAULT_CODES
 from ..constants.warning_codes import WARNING_CODES
 from ..const import CONF_RATED_POWER
-from ..utils import decode_bitmask_to_string, get_highest_set_bit, sum_pv_registers
+from ..utils import decode_bitmask_to_string, energy_balance, get_highest_set_bit, sum_pv_registers
 
 SENSOR_TYPES = [
     # --- Calculated Sensors ---
@@ -105,12 +105,12 @@ SENSOR_TYPES = [
         "suggested_display_precision": 1,
         "enabled": True,
         "visible": True,
-        "extract": lambda registers, entry: (
-            registers.get(I_ETOUSER_DAY, 0)
-            + registers.get(I_EINV_DAY, 0)
-            - registers.get(I_EREC_DAY, 0)
-            - registers.get(I_ETOGRID_DAY, 0)
-            + registers.get(I_EEPS_DAY, 0)
+        # Import + inverter output + off-grid output, less what was charged from
+        # the grid and exported back to it.
+        "extract": lambda registers, entry: energy_balance(
+            registers,
+            add=(I_ETOUSER_DAY, I_EINV_DAY, I_EEPS_DAY),
+            subtract=(I_EREC_DAY, I_ETOGRID_DAY),
         ),
         "scale": 0.1,
         "master_only": False,
@@ -137,27 +137,17 @@ SENSOR_TYPES = [
         "suggested_display_precision": 1,
         "enabled": True,
         "visible": True,
-        "extract": lambda registers, entry: (
-            (
-                (registers.get(I_ETOUSER_ALL_H, 0) << 16)
-                | registers.get(I_ETOUSER_ALL_L, 0)
-            )
-            + (
-                (registers.get(I_EINV_ALL_H, 0) << 16)
-                | registers.get(I_EINV_ALL_L, 0)
-            )
-            - (
-                (registers.get(I_EREC_ALL_H, 0) << 16)
-                | registers.get(I_EREC_ALL_L, 0)
-            )
-            - (
-                (registers.get(I_ETOGRID_ALL_H, 0) << 16)
-                | registers.get(I_ETOGRID_ALL_L, 0)
-            )
-            + (
-                (registers.get(I_EEPS_ALL_H, 0) << 16)
-                | registers.get(I_EEPS_ALL_L, 0)
-            )
+        "extract": lambda registers, entry: energy_balance(
+            registers,
+            add=(
+                (I_ETOUSER_ALL_L, I_ETOUSER_ALL_H),
+                (I_EINV_ALL_L, I_EINV_ALL_H),
+                (I_EEPS_ALL_L, I_EEPS_ALL_H),
+            ),
+            subtract=(
+                (I_EREC_ALL_L, I_EREC_ALL_H),
+                (I_ETOGRID_ALL_L, I_ETOGRID_ALL_H),
+            ),
         ),
         "scale": 0.1,
         "master_only": False,
