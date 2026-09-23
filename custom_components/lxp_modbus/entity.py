@@ -1,13 +1,20 @@
 """Base class for LuxPower Modbus entities."""
 import logging
 from homeassistant.core import callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, CoordinatorEntity
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import generate_entity_id
 from .utils import format_firmware_version
 from .const import DOMAIN, INTEGRATION_TITLE, CONF_INVERTER_SERIAL, CONF_ENABLE_DEVICE_GROUPING, DEFAULT_ENABLE_DEVICE_GROUPING
 from .constants.input_registers import I_MASTER_SLAVE_PARALLEL_STATUS
 
 _LOGGER = logging.getLogger(__name__)
+
+# Home Assistant 2026.8 deprecated DeviceInfo["via_device"] in favour of
+# "via_device_id" and will drop the old key in 2027.8. Both spellings have to work
+# while the minimum supported core is older than that.
+SUPPORTS_VIA_DEVICE_ID = "via_device_id" in getattr(DeviceInfo, "__annotations__", {})
 
 class ModbusBridgeEntity(CoordinatorEntity):
     """A base class for all LuxPower Modbus entities."""
@@ -67,11 +74,13 @@ class ModbusBridgeEntity(CoordinatorEntity):
         """Return the per-entry lock that serialises read-modify-write cycles."""
         return self.coordinator.hass.data[DOMAIN][self._entry.entry_id]["write_lock"]
 
-    async def _async_write_register(self, compose_value) -> bool:
+    async def _async_write_register(self, compose_value, needs_current: bool = True) -> bool:
         """Write this entity's register and re-sync from the inverter.
 
         ``compose_value`` receives the current register value and returns the value
         to write, so registers packing several controls keep their sibling bits.
+        ``needs_current`` is False only where the entity owns the whole register and
+        the composed value does not depend on what is already there.
 
         The lock matters because many registers back more than one entity: without
         it, two writes started within one poll interval would both compose from the
@@ -83,6 +92,19 @@ class ModbusBridgeEntity(CoordinatorEntity):
 
         async with self._write_lock:
             registers = self.coordinator.data.setdefault(self._register_type, {})
+
+            # Composing against a register that has never been read would write
+            # zeros into every sibling control packed beside this one. On register
+            # 21 that silently sets Working Mode to Standby and stops the inverter,
+            # which is what happens when an automation fires after a restart whose
+            # first settings poll failed. Refuse rather than guess.
+            if needs_current and self._register not in registers:
+                raise HomeAssistantError(
+                    f"Cannot write '{self.name}': register {self._register} has not "
+                    "been read from the inverter yet. Wait for a successful poll and "
+                    "try again."
+                )
+
             current_value = registers.get(self._register, 0)
             value_to_write = compose_value(current_value)
 
@@ -160,16 +182,16 @@ class ModbusBridgeEntity(CoordinatorEntity):
 
         if device_group and enable_device_grouping:
             # Create sub-device grouped under main inverter
-            main_device_id = (DOMAIN, self._entry.entry_id)
             sub_device_id = (DOMAIN, f"{self._entry.entry_id}_{device_group}")
 
-            return {
+            device_info = {
                 "identifiers": {sub_device_id},
                 "name": f"{self._entry.title or INTEGRATION_TITLE} - {device_group}",
                 "manufacturer": "LuxpowerTek",
                 "model": self._entry.data.get("model") or "Unknown",
-                "via_device": main_device_id,  # Link to parent device
             }
+            device_info.update(self._parent_device_link())
+            return device_info
         else:
             # Main inverter device (either no device_group or grouping disabled)
             return {
@@ -180,6 +202,21 @@ class ModbusBridgeEntity(CoordinatorEntity):
                 "serial_number": self._entry.data.get(CONF_INVERTER_SERIAL),
                 "sw_version": firmware_version,
             }
+
+    def _parent_device_link(self) -> dict:
+        """Return the key linking a sub-device to the parent inverter device."""
+        if SUPPORTS_VIA_DEVICE_ID:
+            # Registered in async_setup_entry, so it is always present by the time
+            # an entity is added.
+            main_device_id = self.coordinator.hass.data[DOMAIN][
+                self._entry.entry_id
+            ].get("main_device_id")
+            if main_device_id:
+                return {"via_device_id": main_device_id}
+            _LOGGER.debug("Parent device id unavailable, leaving '%s' unlinked", self.name)
+            return {}
+
+        return {"via_device": (DOMAIN, self._entry.entry_id)}
 
     @property
     def is_master(self) -> bool:

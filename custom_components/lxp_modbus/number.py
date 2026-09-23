@@ -128,4 +128,7 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
                 lambda current: self._compose_fn(current, value_to_write)
             )
         else:
-            await self._async_write_register(lambda _current: value_to_write)
+            # No compose function means this entity owns the whole register.
+            await self._async_write_register(
+                lambda _current: value_to_write, needs_current=False
+            )

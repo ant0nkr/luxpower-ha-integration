@@ -8,6 +8,8 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
+from homeassistant.exceptions import HomeAssistantError
+
 from custom_components.lxp_modbus.const import DOMAIN
 from custom_components.lxp_modbus.number import ModbusBridgeNumber
 from custom_components.lxp_modbus.switch import ModbusBridgeSwitch
@@ -55,7 +57,11 @@ def coordinator():
         side_effect=lambda data: setattr(coord, "data", data)
     )
     coord.hass = MagicMock()
-    coord.hass.data = {DOMAIN: {ENTRY_ID: {"write_lock": asyncio.Lock()}}}
+    coord.hass.data = {
+        DOMAIN: {
+            ENTRY_ID: {"write_lock": asyncio.Lock(), "main_device_id": "device-1"}
+        }
+    }
     return coord
 
 
@@ -286,6 +292,88 @@ class TestSharedWritePath:
         assert switch_a.is_on is True
         assert switch_b.is_on is True
         assert len(written) == 2
+
+
+class TestUnreadRegisterGuard:
+    """Issue #156: composing against an unread register wipes its sibling bits."""
+
+    @pytest.mark.asyncio
+    async def test_write_refused_when_register_never_read(
+        self, coordinator, entry, api_client
+    ):
+        """Register 21 packs Working Mode beside AC Charging.
+
+        Treating an unread register as 0 writes Standby into bit 9 and stops the
+        inverter, which is what users saw after a restart whose settings poll failed.
+        """
+        entity = make_switch(coordinator, entry, api_client, SWITCH_A_DESC)
+
+        with pytest.raises(HomeAssistantError):
+            await entity.async_turn_on()
+
+        api_client.async_write_register.assert_not_awaited()
+        coordinator.async_set_updated_data.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_write_allowed_once_the_register_has_been_read(
+        self, coordinator, entry, api_client
+    ):
+        """A value of 0 that was actually read is a real value, not a missing one."""
+        coordinator.data["hold"][21] = 0
+        entity = make_switch(coordinator, entry, api_client, SWITCH_A_DESC)
+
+        await entity.async_turn_on()
+
+        api_client.async_write_register.assert_awaited_once_with(21, 1)
+
+    @pytest.mark.asyncio
+    async def test_whole_register_write_does_not_need_a_prior_read(
+        self, coordinator, entry, api_client
+    ):
+        """A number owning its whole register composes nothing, so it can proceed."""
+        entity = make_number(coordinator, entry, api_client)
+
+        await entity.async_set_native_value(58.1)
+
+        api_client.async_write_register.assert_awaited_once_with(228, 581)
+
+    @pytest.mark.asyncio
+    async def test_missing_client_still_reported_before_the_guard(
+        self, coordinator, entry
+    ):
+        """No client is a configuration state, not a user error — no exception."""
+        entity = make_switch(coordinator, entry, None, SWITCH_A_DESC)
+
+        await entity.async_turn_on()
+
+        coordinator.async_set_updated_data.assert_not_called()
+
+
+class TestSubDeviceLink:
+    """Issue #163: via_device is deprecated and removed in Home Assistant 2027.8."""
+
+    def test_sub_device_links_to_the_parent_device(self, coordinator, entry, api_client):
+        """Whichever spelling this core supports, the link must be present."""
+        entry.data = {"enable_device_grouping": True}
+        grouped_desc = dict(SWITCH_A_DESC, device_group="Battery")
+        entity = make_switch(coordinator, entry, api_client, grouped_desc)
+
+        info = entity.device_info
+
+        if "via_device_id" in info:
+            assert info["via_device_id"] == "device-1"
+        else:
+            assert info["via_device"] == (DOMAIN, ENTRY_ID)
+
+    def test_main_device_has_no_parent_link(self, coordinator, entry, api_client):
+        """The inverter itself is the root device."""
+        entry.data = {}
+        entity = make_switch(coordinator, entry, api_client, SWITCH_A_DESC)
+
+        info = entity.device_info
+
+        assert "via_device" not in info
+        assert "via_device_id" not in info
 
 
 class TestUnchangedStateSuppression:

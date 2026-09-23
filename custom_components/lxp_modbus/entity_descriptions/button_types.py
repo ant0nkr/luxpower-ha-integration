@@ -20,6 +20,7 @@ BUTTON_TYPES = [
         "icon": "mdi:eraser",
         # The press action ignores the original value and always writes 0
         "press": lambda orig: 0,
+        "needs_current": False,
         "enabled": True,
         "visible": True,
         "master_only": False,
@@ -31,6 +32,7 @@ BUTTON_TYPES = [
         "register_type": "hold",
         "icon": "mdi:alert-remove",
         "press": lambda orig: 1,
+        "needs_current": False,
         "enabled": True,
         "visible": True,
         "master_only": True,
