@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from homeassistant.exceptions import HomeAssistantError
 
+from custom_components.lxp_modbus.classes.modbus_client import ModbusWriteRejected
 from custom_components.lxp_modbus.const import DOMAIN
 from custom_components.lxp_modbus.number import ModbusBridgeNumber
 from custom_components.lxp_modbus.switch import ModbusBridgeSwitch
@@ -346,6 +347,39 @@ class TestUnreadRegisterGuard:
 
         await entity.async_turn_on()
 
+        coordinator.async_set_updated_data.assert_not_called()
+
+
+class TestRefusedWriteReachesTheUser:
+    """Issue #164: a refused write left the user with no explanation."""
+
+    @pytest.mark.asyncio
+    async def test_refusal_propagates(self, coordinator, entry, api_client):
+        """The reason must reach Home Assistant, not just the log."""
+        coordinator.data["hold"][21] = 0
+        api_client.async_write_register = AsyncMock(
+            side_effect=ModbusWriteRejected(
+                "The inverter rejected the value 1 for register 21: illegal data value"
+            )
+        )
+        entity = make_switch(coordinator, entry, api_client, SWITCH_A_DESC)
+
+        with pytest.raises(HomeAssistantError) as refusal:
+            await entity.async_turn_on()
+
+        assert "illegal data value" in str(refusal.value)
+
+    @pytest.mark.asyncio
+    async def test_refused_write_is_not_cached(self, coordinator, entry, api_client):
+        """The inverter never stored it, so neither may we."""
+        coordinator.data["hold"][21] = 0
+        api_client.async_write_register = AsyncMock(side_effect=ModbusWriteRejected("no"))
+        entity = make_switch(coordinator, entry, api_client, SWITCH_A_DESC)
+
+        with pytest.raises(HomeAssistantError):
+            await entity.async_turn_on()
+
+        assert coordinator.data["hold"][21] == 0
         coordinator.async_set_updated_data.assert_not_called()
 
 

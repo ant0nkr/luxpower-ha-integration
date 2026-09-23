@@ -3,6 +3,7 @@ import asyncio
 import logging
 import time as time_lib
 
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from ..const import (
@@ -32,6 +33,15 @@ from .lxp_response import LxpResponse
 from .packet_recovery import PacketRecoveryHandler
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class ModbusWriteRejected(HomeAssistantError):
+    """The inverter received a write and refused it.
+
+    Distinct from a failed write: nothing went wrong on the wire, so retrying is
+    pointless and the caller has been given a reason it can show to the user.
+    """
+
 
 # Backward-compatible re-exports for tests
 from .data_validator import HOLD_TIME_REGISTERS  # noqa: F401
@@ -373,20 +383,25 @@ class LxpModbusApiClient:
 
             if result is True:
                 return True
-            if result is None:
+            if isinstance(result, ModbusWriteRejected):
                 # The inverter understood the request and refused it. Repeating it
                 # will produce the same refusal, so stop instead of hammering the
-                # dongle two more times.
-                return False
+                # dongle two more times. Raised rather than returned so the reason
+                # reaches the user instead of the value silently snapping back —
+                # raising it here keeps it clear of the retry loop's own handler.
+                raise result
 
         _LOGGER.error("Failed to write register %s after %d attempts.", register, self._connection_retries)
         return False
 
-    async def _async_write_once(self, register: int, value: int, attempt: int) -> bool | None:
+    async def _async_write_once(self, register: int, value: int,
+                                attempt: int) -> bool | ModbusWriteRejected:
         """Perform a single write attempt and confirm it was applied.
 
         Returns True on a confirmed write, False when the attempt failed in a way
-        worth retrying, and None when the inverter explicitly rejected the write.
+        worth retrying, and a ModbusWriteRejected when the inverter explicitly
+        rejected it. The refusal is returned rather than raised because the caller
+        catches exceptions from this method to drive its retries.
         """
         async with self._lock:
             _LOGGER.debug("Write attempt %s/%s for register %s with value %s",
@@ -427,7 +442,7 @@ class LxpModbusApiClient:
                 await self._connection_manager.async_close(writer)
 
     def _evaluate_write_response(self, response_buf: bytes, register: int, value: int,
-                                 attempt: int) -> bool | None:
+                                 attempt: int) -> bool | ModbusWriteRejected:
         """Judge a write acknowledgement packet."""
         _LOGGER.debug(
             "Modbus WRITE: Sent to reg %s, value %s, resp: %s",
@@ -451,7 +466,9 @@ class LxpModbusApiClient:
                 "The inverter rejected the write of value %s to register %s: %s. %s",
                 value, register, reason, response.info,
             )
-            return None
+            return ModbusWriteRejected(
+                f"The inverter rejected the value {value} for register {register}: {reason}"
+            )
 
         if response.packet_error:
             _LOGGER.warning("Write attempt %s failed: Inverter returned a packet error. %s",

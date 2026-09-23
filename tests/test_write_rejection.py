@@ -14,7 +14,10 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from custom_components.lxp_modbus.classes.modbus_client import LxpModbusApiClient
+from custom_components.lxp_modbus.classes.modbus_client import (
+    LxpModbusApiClient,
+    ModbusWriteRejected,
+)
 from custom_components.lxp_modbus.classes.lxp_request_builder import LxpRequestBuilder
 from custom_components.lxp_modbus.const import MODBUS_EXCEPTION_MESSAGES
 
@@ -50,14 +53,24 @@ class TestRejectedWrite:
     """A refused write is reported as a refusal and not retried."""
 
     @pytest.mark.asyncio
-    async def test_rejected_write_returns_false(self, reader_writer):
+    async def test_rejected_write_raises_with_the_reason(self, reader_writer):
+        """The caller has to be able to tell the user why nothing happened.
+
+        Returning False made the entity value snap back with no explanation, so
+        users retried — which is how #164 ended up writing the same refused value
+        to register 160 for hours.
+        """
         reader, writer = reader_writer
         client = make_client(connection_retries=3)
 
         with patch('asyncio.open_connection', return_value=(reader, writer)):
             with patch('custom_components.lxp_modbus.classes.modbus_client.LxpResponse',
                        return_value=rejection_response(168, 3)):
-                assert await client.async_write_register(168, 18) is False
+                with pytest.raises(ModbusWriteRejected) as refusal:
+                    await client.async_write_register(168, 18)
+
+        assert "168" in str(refusal.value)
+        assert "illegal data value" in str(refusal.value)
 
     @pytest.mark.asyncio
     async def test_rejected_write_is_not_retried(self, reader_writer):
@@ -68,7 +81,8 @@ class TestRejectedWrite:
         with patch('asyncio.open_connection', return_value=(reader, writer)) as connect:
             with patch('custom_components.lxp_modbus.classes.modbus_client.LxpResponse',
                        return_value=rejection_response(168, 3)):
-                await client.async_write_register(168, 18)
+                with pytest.raises(ModbusWriteRejected):
+                    await client.async_write_register(168, 18)
 
         assert connect.call_count == 1, "a refused write must be attempted only once"
 
@@ -82,7 +96,8 @@ class TestRejectedWrite:
             with patch('asyncio.open_connection', return_value=(reader, writer)):
                 with patch('custom_components.lxp_modbus.classes.modbus_client.LxpResponse',
                            return_value=rejection_response(261, 3)):
-                    await client.async_write_register(261, 80)
+                    with pytest.raises(ModbusWriteRejected):
+                        await client.async_write_register(261, 80)
 
         assert "rejected" in caplog.text
         assert "illegal data value" in caplog.text
@@ -98,7 +113,8 @@ class TestRejectedWrite:
             with patch('asyncio.open_connection', return_value=(reader, writer)):
                 with patch('custom_components.lxp_modbus.classes.modbus_client.LxpResponse',
                            return_value=rejection_response(100, 99)):
-                    assert await client.async_write_register(100, 1) is False
+                    with pytest.raises(ModbusWriteRejected):
+                        await client.async_write_register(100, 1)
 
         assert "unknown exception code 99" in caplog.text
 
