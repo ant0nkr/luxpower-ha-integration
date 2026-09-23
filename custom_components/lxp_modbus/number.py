@@ -8,6 +8,7 @@ from .const import (
     BATTERY_VOLTAGE_CLASSES,
     CONF_BATTERY_VOLTAGE_CLASS,
     CONF_ENTITY_PREFIX,
+    CONF_RATED_POWER,
     DEFAULT_BATTERY_VOLTAGE_CLASS,
     DEFAULT_ENTITY_PREFIX,
     REFERENCE_BATTERY_VOLTAGE_CLASS,
@@ -27,8 +28,19 @@ async def async_setup_entry(hass, entry, async_add_entities):
     entities = [
         ModbusBridgeNumber(coordinator, entry, desc, entity_prefix, api_client)
         for desc in NUMBER_TYPES
+        if not desc.get("percent_of_rated_power") or rated_power(entry)
     ]
     async_add_entities(entities)
+
+
+def rated_power(entry) -> int | None:
+    """Return the configured inverter rated power in watts, if it is usable.
+
+    Entities that convert a percentage into kW are meaningless without it, so
+    they are not created when it is missing or zero.
+    """
+    value = entry.data.get(CONF_RATED_POWER)
+    return value if isinstance(value, (int, float)) and value > 0 else None
 
 class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
     """Represents a number entity that reads and writes a register value."""
@@ -59,6 +71,20 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
         self._extract_fn = desc.get("extract")
         self._compose_fn = desc.get("compose")
 
+        # Some registers hold a percentage of the inverter's rated power. The
+        # LuxPower app shows those settings in kW, so this presents the same
+        # number the app does while the register keeps holding a percentage.
+        self._rated_power = rated_power(entry) if desc.get("percent_of_rated_power") else None
+        if self._rated_power:
+            self._attr_native_unit_of_measurement = "kW"
+            # One step is one percent of rated power. A fixed 0.1 kW step would
+            # offer values the register cannot hold — on a 12 kW inverter one
+            # percent is 0.12 kW — so setting 0.3 would read back as 0.24.
+            self._attr_native_step = self._percent_to_kw(1)
+            self._attr_native_min_value = self._percent_to_kw(desc["min"])
+            self._attr_native_max_value = self._percent_to_kw(desc["max"])
+            self._attr_suggested_display_precision = 2
+
         # A negative minimum means the register carries a signed value, so the
         # all-bits-set pattern is -1 rather than "not implemented".
         self._is_signed = self._attr_native_min_value < 0
@@ -85,6 +111,15 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
 
         return configured / REFERENCE_BATTERY_VOLTAGE_CLASS
 
+    def _percent_to_kw(self, percent: float) -> float:
+        """Convert a percentage of rated power to kW."""
+        return round(percent * self._rated_power / 100 / 1000, 3)
+
+    def _kw_to_percent(self, kilowatts: float) -> int:
+        """Convert kW back to the percentage the register holds."""
+        percent = round(kilowatts * 1000 * 100 / self._rated_power)
+        return max(self._desc["min"], min(self._desc["max"], percent))
+
     @property
     def native_value(self) -> float | None:
         """Return the current value of the number entity."""
@@ -110,6 +145,9 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
         if self._extract_fn:
             register_value = self._extract_fn(register_value)
 
+        if self._rated_power:
+            return self._percent_to_kw(register_value)
+
         # Scale the raw register value for display in the UI
         scaled_value = register_value / self._multiplier
 
@@ -121,7 +159,10 @@ class ModbusBridgeNumber(ModbusBridgeEntity, NumberEntity):
         # Scale the UI value up to the raw integer value for writing to the register.
         # round() is required: int(58.1 * 10) is 580, not 581, because 58.1 has no
         # exact binary representation — truncating writes the wrong value.
-        value_to_write = int(round(value * self._multiplier))
+        if self._rated_power:
+            value_to_write = self._kw_to_percent(value)
+        else:
+            value_to_write = int(round(value * self._multiplier))
 
         if self._compose_fn:
             await self._async_write_register(

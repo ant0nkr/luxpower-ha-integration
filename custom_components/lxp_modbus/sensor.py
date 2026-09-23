@@ -86,6 +86,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
         for descriptions, platform in readonly_types:
             for desc in descriptions:
+                # These duplicate a percentage entity on the same register and need
+                # the rated power to render, which the read-only renderer has no
+                # access to. The percentage entity already covers the register.
+                if desc.get("percent_of_rated_power"):
+                    continue
                 entities.append(ModbusBridgeReadOnlySensor(coordinator, entry, desc, entity_prefix, platform))
 
     # --- Battery entity setup ---
