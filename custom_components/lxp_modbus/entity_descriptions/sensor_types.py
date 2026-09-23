@@ -8,7 +8,7 @@ from ..constants.battery_registers import *
 from ..constants.fault_codes import FAULT_CODES
 from ..constants.warning_codes import WARNING_CODES
 from ..const import CONF_RATED_POWER
-from ..utils import decode_bitmask_to_string, get_highest_set_bit, sum_pv_registers
+from ..utils import decode_bitmask_to_string, energy_balance, get_highest_set_bit, sum_pv_registers
 
 SENSOR_TYPES = [
     # --- Calculated Sensors ---
@@ -87,6 +87,70 @@ SENSOR_TYPES = [
         ),
         "master_only": False,
         "device_group": "Grid",
+    },
+    {
+        "name": "Home Consumption Today Calculated",
+        "register_type": "calculated",
+        "depends_on": [
+            I_ETOUSER_DAY,
+            I_EINV_DAY,
+            I_EREC_DAY,
+            I_ETOGRID_DAY,
+            I_EEPS_DAY,
+        ],
+        "unit": "kWh",
+        "device_class": "energy",
+        "state_class": "total_increasing",
+        "icon": "mdi:home-lightning-bolt",
+        "suggested_display_precision": 1,
+        "enabled": True,
+        "visible": True,
+        # Import + inverter output + off-grid output, less what was charged from
+        # the grid and exported back to it.
+        "extract": lambda registers, entry: energy_balance(
+            registers,
+            add=(I_ETOUSER_DAY, I_EINV_DAY, I_EEPS_DAY),
+            subtract=(I_EREC_DAY, I_ETOGRID_DAY),
+        ),
+        "scale": 0.1,
+        "master_only": False,
+    },
+    {
+        "name": "Home Consumption Total Calculated",
+        "register_type": "calculated",
+        "depends_on": [
+            I_ETOUSER_ALL_L,
+            I_ETOUSER_ALL_H,
+            I_EINV_ALL_L,
+            I_EINV_ALL_H,
+            I_EREC_ALL_L,
+            I_EREC_ALL_H,
+            I_ETOGRID_ALL_L,
+            I_ETOGRID_ALL_H,
+            I_EEPS_ALL_L,
+            I_EEPS_ALL_H,
+        ],
+        "unit": "kWh",
+        "device_class": "energy",
+        "state_class": "total_increasing",
+        "icon": "mdi:home-lightning-bolt",
+        "suggested_display_precision": 1,
+        "enabled": True,
+        "visible": True,
+        "extract": lambda registers, entry: energy_balance(
+            registers,
+            add=(
+                (I_ETOUSER_ALL_L, I_ETOUSER_ALL_H),
+                (I_EINV_ALL_L, I_EINV_ALL_H),
+                (I_EEPS_ALL_L, I_EEPS_ALL_H),
+            ),
+            subtract=(
+                (I_EREC_ALL_L, I_EREC_ALL_H),
+                (I_ETOGRID_ALL_L, I_ETOGRID_ALL_H),
+            ),
+        ),
+        "scale": 0.1,
+        "master_only": False,
     },
 
     # --- State Sensors ---

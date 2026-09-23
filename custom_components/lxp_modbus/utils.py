@@ -110,3 +110,31 @@ def get_highest_set_bit(value: int) -> int | None:
         return None
     # Calculate the position of the most significant bit.
     return value.bit_length() - 1
+
+def energy_balance(registers: dict, add, subtract=()) -> int | None:
+    """Return a net energy counter, or None if any source register is missing.
+
+    Each entry is a register number, or a ``(low, high)`` pair for a counter
+    split across two registers.
+
+    Absent registers are not treated as 0. A poll can return some blocks and not
+    others, and filling the gaps with zeros turns a partial read into a plausible
+    looking wrong number — or a negative one, which Home Assistant cannot record
+    against a ``total_increasing`` sensor.
+    """
+    def value_of(entry):
+        if isinstance(entry, tuple):
+            low, high = (registers.get(register) for register in entry)
+            if low is None or high is None:
+                return None
+            return (high << 16) | low
+        return registers.get(entry)
+
+    total = 0
+    for entry, sign in [(entry, 1) for entry in add] + [(entry, -1) for entry in subtract]:
+        value = value_of(entry)
+        if value is None:
+            return None
+        total += sign * value
+
+    return total
