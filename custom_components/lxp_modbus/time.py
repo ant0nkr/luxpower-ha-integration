@@ -54,5 +54,6 @@ class ModbusBridgeTime(ModbusBridgeEntity, TimeEntity):
         """Set the time value."""
         # The time occupies the whole register, so the current value is not needed.
         await self._async_write_register(
-            lambda _current: self._compose(value.hour, value.minute)
+            lambda _current: self._compose(value.hour, value.minute),
+            needs_current=False,
         )

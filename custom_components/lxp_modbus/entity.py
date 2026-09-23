@@ -1,6 +1,7 @@
 """Base class for LuxPower Modbus entities."""
 import logging
 from homeassistant.core import callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, CoordinatorEntity
 from homeassistant.helpers.entity import generate_entity_id
 from .utils import format_firmware_version
@@ -67,11 +68,13 @@ class ModbusBridgeEntity(CoordinatorEntity):
         """Return the per-entry lock that serialises read-modify-write cycles."""
         return self.coordinator.hass.data[DOMAIN][self._entry.entry_id]["write_lock"]
 
-    async def _async_write_register(self, compose_value) -> bool:
+    async def _async_write_register(self, compose_value, needs_current: bool = True) -> bool:
         """Write this entity's register and re-sync from the inverter.
 
         ``compose_value`` receives the current register value and returns the value
         to write, so registers packing several controls keep their sibling bits.
+        ``needs_current`` is False only where the entity owns the whole register and
+        the composed value does not depend on what is already there.
 
         The lock matters because many registers back more than one entity: without
         it, two writes started within one poll interval would both compose from the
@@ -83,6 +86,19 @@ class ModbusBridgeEntity(CoordinatorEntity):
 
         async with self._write_lock:
             registers = self.coordinator.data.setdefault(self._register_type, {})
+
+            # Composing against a register that has never been read would write
+            # zeros into every sibling control packed beside this one. On register
+            # 21 that silently sets Working Mode to Standby and stops the inverter,
+            # which is what happens when an automation fires after a restart whose
+            # first settings poll failed. Refuse rather than guess.
+            if needs_current and self._register not in registers:
+                raise HomeAssistantError(
+                    f"Cannot write '{self.name}': register {self._register} has not "
+                    "been read from the inverter yet. Wait for a successful poll and "
+                    "try again."
+                )
+
             current_value = registers.get(self._register, 0)
             value_to_write = compose_value(current_value)
 

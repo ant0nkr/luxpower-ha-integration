@@ -30,10 +30,14 @@ class ModbusBridgeButton(ModbusBridgeEntity, ButtonEntity):
         
         # Store the function that determines the value to write when pressed
         self._press = desc["press"]
+        # Buttons writing a fixed value do not need the register to have been read.
+        self._needs_current = desc.get("needs_current", True)
         self._attr_icon = desc.get("icon")
 
     async def async_press(self) -> None:
         """Handle the button press action."""
         # The press function may need the current register value, so it composes under
         # the shared write lock and the coordinator is refreshed afterwards.
-        await self._async_write_register(lambda current: self._press(current))
+        await self._async_write_register(
+            lambda current: self._press(current), needs_current=self._needs_current
+        )
