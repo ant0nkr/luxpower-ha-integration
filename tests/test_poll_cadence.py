@@ -9,6 +9,8 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from custom_components.lxp_modbus.classes.modbus_client import LxpModbusApiClient
+
+from fake_dongle import DUMMY_FRAME
 from custom_components.lxp_modbus.const import (
     BATTERY_BACKOFF_POLL_EVERY,
     BATTERY_EMPTY_POLLS_BEFORE_BACKOFF,
@@ -81,7 +83,7 @@ class TestHoldPollCadence:
         client = make_client(connection_retries=1)
         reader, writer = AsyncMock(spec=asyncio.StreamReader), AsyncMock(spec=asyncio.StreamWriter)
         writer.write = MagicMock()
-        reader.read = AsyncMock(return_value=b"\x00" * 76)
+        reader.read = AsyncMock(return_value=DUMMY_FRAME)
         client._should_poll_hold()          # consume the forced first poll
         client._should_poll_hold()          # now inside the interval
         client._force_hold_poll = False
@@ -89,11 +91,12 @@ class TestHoldPollCadence:
         with patch('asyncio.open_connection', return_value=(reader, writer)):
             with patch('custom_components.lxp_modbus.classes.modbus_client.LxpResponse') as response:
                 response.return_value = MagicMock(
-                    packet_error=False, device_function=6, exception=0,
+                    tcp_function=194, serial_number=b"0000000001",
+                    packet_error=False, device_function=6, exception=0, register=100,
                     parsed_values_dictionary={100: 500},
                 )
-                # The mocked response is not a valid read reply, so the inline
-                # confirmation read comes back empty.
+                # The mocked response is not a read reply, so the inline
+                # confirmation read never gets its answer.
                 assert await client.async_write_register(100, 500) is True
 
         assert client._force_hold_poll is True

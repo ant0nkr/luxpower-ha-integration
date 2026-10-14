@@ -20,13 +20,13 @@ from ..const import (
     RETRY_BACKOFF_MULTIPLIER,
     TOTAL_REGISTERS,
     WRITE_READ_TIMEOUT,
-    WRITE_RESPONSE_LENGTH,
     WRITE_RETRY_DELAY,
 )
 from ..constants.input_registers import I_BAT_PARALLEL_NUM
 from .connection_manager import ModbusConnectionManager
 from .data_validator import is_data_sane
 from .lxp_batteries import LxpBatteries
+from .lxp_frame_reader import LxpFrameReader
 from .lxp_request_builder import LxpRequestBuilder
 from .lxp_response import LxpResponse
 from .packet_recovery import PacketRecoveryHandler
@@ -73,6 +73,8 @@ class LxpModbusApiClient:
         self._battery_skipped_polls = 0
         self._battery_backoff_counter = 0
         self._force_hold_poll = True  # first poll must read settings
+        self._stale_frames = 0
+        self._frame_reader = None
 
         # Composed dependencies
         self._connection_manager = ModbusConnectionManager(
@@ -96,55 +98,91 @@ class LxpModbusApiClient:
             reg, count, function_code
         )
         expected_length = RESPONSE_OVERHEAD + (count * 2)
+        frames = self._frames_for(reader)
         writer.write(req)
         await writer.drain()
-        response_buf = await asyncio.wait_for(reader.read(expected_length), timeout=READ_TIMEOUT)
 
-        _LOGGER.debug(
-            "Polling %s(%d) %d-%d: Req[%d]: %s, Resp[%d/%d]: %s",
-            request_type,
-            function_code,
-            reg, reg + count - 1,
-            len(req),
-            req.hex(),
-            len(response_buf) if response_buf else 0,
-            expected_length,
-            response_buf.hex() if response_buf else "None"
-        )
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + READ_TIMEOUT
+        while True:
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                raise asyncio.TimeoutError(f"No answer for {request_type}({function_code}) {reg}")
+            response_buf = await frames.async_read_frame(remaining)
 
-        if response_buf and len(response_buf) > RESPONSE_OVERHEAD:
+            _LOGGER.debug(
+                "Polling %s(%d) %d-%d: Req[%d]: %s, Resp[%d/%d]: %s",
+                request_type,
+                function_code,
+                reg, reg + count - 1,
+                len(req),
+                req.hex(),
+                len(response_buf) if response_buf else 0,
+                expected_length,
+                response_buf.hex() if response_buf else "None"
+            )
+
+            if not response_buf:
+                return {}
+
             response = LxpResponse(response_buf)
+            mismatch = self._response_mismatch(response, reg, function_code)
+            if mismatch:
+                # A frame meant for someone else (dongle push, earlier request).
+                # Our answer is still on its way, so keep reading.
+                self._stale_frames += 1
+                _LOGGER.debug("discarding frame while waiting for %s(%s) %s-%s (%s): response=%s",
+                              request_type, function_code, reg, reg + count - 1,
+                              mismatch, response.info)
+                continue
+            break
 
-            # Attempt safe packet recovery if needed
-            if response.packet_error and response.packet_length_calced > expected_length:
-                response = await self.async_safe_packet_recovery(
-                    reader, response_buf, expected_length, request_type, function_code
-                )
+        if response.packet_error or response.exception:
+            _LOGGER.debug("ignoring %s(%s) packet for regs %s-%s : response=%s",
+                          request_type, function_code, reg, reg + count - 1, response.info)
+            return {}
 
-            if (not response.packet_error
-               and response.serial_number == self._inverter_serial.encode()
-               and function_code == response.device_function
-               and reg == response.register
-               and is_data_sane(response.parsed_values_dictionary, request_type)
-               ):
+        if not is_data_sane(response.parsed_values_dictionary, request_type):
+            _LOGGER.debug("ignoring %s(%s) packet for regs %s-%s : data failed sanity checks",
+                          request_type, function_code, reg, reg + count - 1)
+            return {}
 
-                if len(response.parsed_values_dictionary) != count:
-                    _LOGGER.debug("%s(%s) response has different register count (%s) than requested (%s)",
-                                  request_type, function_code, len(response.parsed_values_dictionary), count)
+        if len(response.parsed_values_dictionary) != count:
+            _LOGGER.debug("%s(%s) response has different register count (%s) than requested (%s)",
+                          request_type, function_code, len(response.parsed_values_dictionary), count)
 
-                # Battery data needs special decoding — returns dict keyed by serial
-                # This will not work correctly with small blocks if they are not aligned
-                if response.register >= BATTERY_INFO_START_REGISTER:
-                    bat_dict = LxpBatteries(response).get_battery_info()
-                    _LOGGER.debug("Battery data decoded: %s", list(bat_dict.keys()))
-                    return bat_dict
+        # Battery data needs special decoding — returns dict keyed by serial
+        # This will not work correctly with small blocks if they are not aligned
+        if response.register >= BATTERY_INFO_START_REGISTER:
+            bat_dict = LxpBatteries(response).get_battery_info()
+            _LOGGER.debug("Battery data decoded: %s", list(bat_dict.keys()))
+            return bat_dict
 
-                return response.parsed_values_dictionary
-            else:
-                _LOGGER.debug("ignoring %s(%s) packet for regs %s-%s : response=%s",
-                              request_type, function_code, reg, reg + count - 1, response.info)
+        return response.parsed_values_dictionary
 
-        return {}
+    def _frames_for(self, reader) -> LxpFrameReader:
+        """Return the frame reader for this connection, keeping bytes buffered across requests."""
+        if self._frame_reader is None or self._frame_reader.reader is not reader:
+            self._frame_reader = LxpFrameReader(reader)
+        return self._frame_reader
+
+    def _response_mismatch(self, response: LxpResponse, reg: int, function_code: int) -> str | None:
+        """Say why a frame is not the answer to our request, or None if it is.
+
+        A data frame with a bad CRC counts as the answer: it is the corrupted
+        reply, and waiting past it would only end in a timeout.
+        """
+        if response.tcp_function != LxpRequestBuilder.TRANSLATED_DATA:
+            return f"tcp_function {response.tcp_function}"
+        if response.packet_error:
+            return None
+        if response.serial_number != self._inverter_serial.encode():
+            return f"serial {response.serial_number!r}"
+        if response.device_function not in (function_code, function_code | 0x80):
+            return f"function {response.device_function}"
+        if response.register != reg:
+            return f"register {response.register}"
+        return None
 
     async def async_discard_initial_data(self, reader):
         """Delegate initial data discard to the connection manager."""
@@ -279,6 +317,7 @@ class LxpModbusApiClient:
         writer = None
 
         poll_hold = self._should_poll_hold()
+        hold_done = False
 
         async with self._lock:
             reader, writer = await self._connection_manager.async_connect()
@@ -317,10 +356,16 @@ class LxpModbusApiClient:
                             if len(reg_block) > 0:
                                 newly_polled_hold_regs.update(reg_block)
                         self._hold_polls += 1
+                        hold_done = True
 
-                except asyncio.TimeoutError:
-                    _LOGGER.debug("Timeout requesting data from inverter")
+                except asyncio.TimeoutError as err:
+                    _LOGGER.debug("Timeout requesting data from inverter: %s", err)
             finally:
+                if poll_hold and not hold_done:
+                    # The settings pass was cut short; claim the next poll for it
+                    # instead of waiting a whole cycle (or never reading settings
+                    # at all when every pass times out somewhere).
+                    self._force_hold_poll = True
                 await self._connection_manager.async_close(writer)
 
         # Merge new data with the last known good data
@@ -404,14 +449,13 @@ class LxpModbusApiClient:
                 req = LxpRequestBuilder.prepare_packet_for_write(
                     self._dongle_serial.encode(), self._inverter_serial.encode(), register, value
                 )
+                frames = self._frames_for(reader)
                 writer.write(req)
                 await writer.drain()
 
-                # A bare read() here can block forever while holding the shared
-                # lock, which wedges polling and every later write.
-                response_buf = await asyncio.wait_for(
-                    reader.read(WRITE_RESPONSE_LENGTH), timeout=WRITE_READ_TIMEOUT
-                )
+                # Bounded wait: an unbounded read here would block forever while
+                # holding the shared lock, which wedges polling and every later write.
+                response_buf = await self._async_read_write_ack(frames, register)
             except asyncio.TimeoutError:
                 _LOGGER.warning("Write attempt %s for register %s timed out waiting for acknowledgement",
                                 attempt + 1, register)
@@ -425,6 +469,29 @@ class LxpModbusApiClient:
                 return result
             finally:
                 await self._connection_manager.async_close(writer)
+
+    async def _async_read_write_ack(self, frames: LxpFrameReader, register: int) -> bytes | None:
+        """Read frames until the acknowledgement for ``register`` arrives.
+
+        Frames the dongle pushes on its own would otherwise be taken for the
+        acknowledgement and reported as a confirmation mismatch.
+        """
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + WRITE_READ_TIMEOUT
+        while True:
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                raise asyncio.TimeoutError(f"No acknowledgement for register {register}")
+            response_buf = await frames.async_read_frame(remaining)
+            if not response_buf:
+                return response_buf
+
+            mismatch = self._response_mismatch(LxpResponse(response_buf), register, 6)
+            if not mismatch:
+                return response_buf
+            self._stale_frames += 1
+            _LOGGER.debug("discarding frame while waiting for write ack of register %s (%s): %s",
+                          register, mismatch, response_buf.hex())
 
     def _evaluate_write_response(self, response_buf: bytes, register: int, value: int,
                                  attempt: int) -> bool | None:
@@ -520,6 +587,7 @@ class LxpModbusApiClient:
             "hold_poll_every": HOLD_REGISTER_POLL_EVERY,
             "battery_empty_polls": self._battery_empty_polls,
             "battery_skipped_polls": self._battery_skipped_polls,
+            "stale_frames_discarded": self._stale_frames,
             "consecutive_failures": self._connection_failure_count,
             "reconnect_count": self._connection_retry_count,
             "last_success": self._last_success_description(),
