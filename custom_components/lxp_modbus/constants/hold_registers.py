@@ -137,7 +137,7 @@ H_CHARGE_CURRENT = 101 # Charging current (Unit: A, Range: 0-140).
 H_DISCHARGE_CURRENT = 102 # Discharging current (Unit: A, Range: 0-140).
 H_MAX_BACKFLOW_POWER = 103 # Feed-in grid power setting (Unit: %, Range: 0-100).
 # Register 104 is not defined in the Hold Register table.
-H_EOD_SOC = 105 # Cut SOC for discharging (End of Discharge) (Unit: %, Range: 10-90).
+H_EOD_SOC = 105 # Cut SOC for discharging (End of Discharge) (Unit: %, Range: 10-90 per the document; some firmware accepts 0).
 H_LEAD_ACID_TEMP_LOW_LIMIT_DISCHG = 106 # Lead-acid Temperature low limit for discharging (Unit: 0.1°C).
 H_LEAD_ACID_TEMP_UPPER_LIMIT_DISCHG = 107 # Lead-acid Temperature high limit for discharging (Unit: 0.1°C).
 H_LEAD_ACID_TEMP_LOW_LIMIT_CHG = 108 # Lead-acid Temperature low limit for charging (Unit: 0.1°C).

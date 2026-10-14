@@ -367,7 +367,10 @@ NUMBER_TYPES = [
         "name": "On-Grid Cut-Off SOC",
         "register": H_EOD_SOC,
         "register_type": "hold",
-        "min": 10,
+        # The document says 10, but firmware such as BAAB-030808 (LXP 3600 AXS)
+        # accepts 0, as the LuxPower web UI does (#171). Inverters that refuse a
+        # low value reject the write with a clear error.
+        "min": 0,
         "max": 100,
         "step": 1,
         "unit": "%",
@@ -432,19 +435,15 @@ NUMBER_TYPES = [
         "register": H_QUICK_CHG_TIME,
         "register_type": "hold",
         "min": 0,
-        "max": 65535,
+        "max": 1440,
         "step": 1,
-        "unit": "m",
-        "multiplier": 1,
-        "icon": "mdi:timer",
-        "enabled": True,
-        "visible": True,
-        "device_group": "Battery",
+        "unit": "min",
         "multiplier": 1,
         "icon": "mdi:timer-sand",
         "enabled": True,
         "visible": True,
         "master_only": False,
+        "device_group": "Battery",
     },
 
     # --- EPS (Off-Grid) ---
