@@ -20,6 +20,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from custom_components.lxp_modbus.classes.modbus_client import LxpModbusApiClient
 
+from fake_dongle import DUMMY_FRAME
+
 
 def make_client(**kwargs):
     return LxpModbusApiClient(
@@ -32,13 +34,14 @@ def reader_writer():
     reader = AsyncMock(spec=asyncio.StreamReader)
     writer = AsyncMock(spec=asyncio.StreamWriter)
     writer.write = MagicMock()
-    reader.read = AsyncMock(return_value=b"\x00" * 76)
+    reader.read = AsyncMock(return_value=DUMMY_FRAME)
     return reader, writer
 
 
 def accepted_response(register, value):
     """A parsed acknowledgement echoing what the inverter stored."""
     return MagicMock(
+        tcp_function=194, serial_number=b"0000000001",
         packet_error=False,
         device_function=6,
         exception=0,
@@ -168,6 +171,7 @@ class TestConfirmedValueReachesTheCache:
         reader, writer = reader_writer
         client = make_client(connection_retries=1)
         mismatch = MagicMock(
+            tcp_function=194, serial_number=b"0000000001",
             packet_error=False, device_function=6, exception=0, register=21,
             parsed_values_dictionary={21: 0}, info="",
         )

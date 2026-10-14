@@ -24,6 +24,7 @@ from custom_components.lxp_modbus.const import (
 from custom_components.lxp_modbus.constants.hold_registers import H_AC_CHARGE_START_TIME, H_AC_CHARGE_END_TIME
 
 from test_data import INPUT_RESPONSES, HOLD_RESPONSES
+from fake_dongle import DUMMY_FRAME, FakeDongle
 
 
 class TestLxpModbusApiClient:
@@ -182,9 +183,11 @@ class TestLxpModbusApiClient:
         # Mock the response validation in the method
         with patch('custom_components.lxp_modbus.classes.modbus_client.LxpResponse') as mock_response_class:
             mock_response = MagicMock()
+            mock_response.tcp_function = 194
             mock_response.packet_error = False
             mock_response.serial_number = b"4434280298"
             mock_response.device_function = 4
+            mock_response.exception = 0
             mock_response.register = 0
             mock_response.parsed_values_dictionary = {0: 100, 1: 200, 2: 300}
             mock_response_class.return_value = mock_response
@@ -195,7 +198,9 @@ class TestLxpModbusApiClient:
                 
                 writer.write.assert_called_once()
                 writer.drain.assert_called_once()
-                reader.read.assert_called_once()
+                # The sample is one byte short of its header length, so the frame
+                # is completed from a second read.
+                reader.read.assert_called()
                 
                 # Should return a dictionary with parsed values
                 assert isinstance(result, dict)
@@ -226,8 +231,9 @@ class TestLxpModbusApiClient:
     async def test_async_request_registers_invalid_response(self, client, mock_reader_writer):
         """Test register request with invalid response."""
         reader, writer = mock_reader_writer
-        reader.read.return_value = b"invalid_response_data"
-        
+        # Bytes that never form a frame, then the dongle hangs up.
+        reader.read.side_effect = [b"invalid_response_data", b""]
+
         result = await client.async_request_registers(writer, reader, 0, "input", 4)
         
         # Should return empty dict for invalid response
@@ -295,10 +301,10 @@ class TestLxpModbusApiClient:
         reader, writer = mock_reader_writer
         
         # Mock successful connection
-        with patch('asyncio.open_connection', return_value=(reader, writer)):
-            # Mock register responses
-            reader.read.side_effect = [sample_input_response, sample_hold_response] * (TOTAL_REGISTERS // client._block_size + 1)
-            
+        dongle = FakeDongle(dongle=b"DG44302247", serial=b"4434280298",
+                            value_of=lambda function, register: 0)
+
+        with patch('asyncio.open_connection', return_value=(dongle, dongle)):
             result = await client.async_get_data()
 
             assert "input" in result
@@ -402,7 +408,7 @@ class TestLxpModbusApiClient:
         reader, writer = mock_reader_writer
         
         # Mock successful write response
-        write_response = b"\xa1\x1a\x05\x00\x1e\x01\x01\xc2" + b"0" * 68  # Mock response
+        write_response = DUMMY_FRAME  # Mock response
         reader.read.return_value = write_response
         
         with patch('asyncio.open_connection', return_value=(reader, writer)):
@@ -412,6 +418,9 @@ class TestLxpModbusApiClient:
                 mock_response.packet_error = False
                 # A real response always carries these; without them the mock looks
                 # like a Modbus exception reply.
+                mock_response.tcp_function = 194
+                mock_response.serial_number = b"4434280298"
+                mock_response.register = 100
                 mock_response.device_function = 6
                 mock_response.exception = 0
                 mock_response.parsed_values_dictionary = {100: 500}
@@ -444,7 +453,7 @@ class TestLxpModbusApiClient:
             (reader, writer)
         ]
         
-        write_response = b"\xa1\x1a\x05\x00\x1e\x01\x01\xc2" + b"0" * 68
+        write_response = DUMMY_FRAME
         reader.read.return_value = write_response
         
         with patch('asyncio.open_connection', side_effect=connection_attempts):
@@ -454,6 +463,9 @@ class TestLxpModbusApiClient:
                 mock_response.packet_error = False
                 # A real response always carries these; without them the mock looks
                 # like a Modbus exception reply.
+                mock_response.tcp_function = 194
+                mock_response.serial_number = b"4434280298"
+                mock_response.register = 100
                 mock_response.device_function = 6
                 mock_response.exception = 0
                 mock_response.parsed_values_dictionary = {100: 500}
@@ -468,7 +480,7 @@ class TestLxpModbusApiClient:
         """Test write register with confirmation mismatch."""
         reader, writer = mock_reader_writer
         
-        write_response = b"\xa1\x1a\x05\x00\x1e\x01\x01\xc2" + b"0" * 68
+        write_response = DUMMY_FRAME
         reader.read.return_value = write_response
         
         with patch('asyncio.open_connection', return_value=(reader, writer)):
@@ -478,6 +490,9 @@ class TestLxpModbusApiClient:
                 mock_response.packet_error = False
                 # A real response always carries these; without them the mock looks
                 # like a Modbus exception reply.
+                mock_response.tcp_function = 194
+                mock_response.serial_number = b"4434280298"
+                mock_response.register = 100
                 mock_response.device_function = 6
                 mock_response.exception = 0
                 mock_response.parsed_values_dictionary = {100: 600}  # Different value than requested

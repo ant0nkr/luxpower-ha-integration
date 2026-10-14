@@ -15,6 +15,8 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from custom_components.lxp_modbus.classes.modbus_client import LxpModbusApiClient
+
+from fake_dongle import DUMMY_FRAME
 from custom_components.lxp_modbus.classes.lxp_request_builder import LxpRequestBuilder
 from custom_components.lxp_modbus.const import MODBUS_EXCEPTION_MESSAGES
 
@@ -30,13 +32,14 @@ def reader_writer():
     reader = AsyncMock(spec=asyncio.StreamReader)
     writer = AsyncMock(spec=asyncio.StreamWriter)
     writer.write = MagicMock()
-    reader.read = AsyncMock(return_value=b"\x00" * 76)
+    reader.read = AsyncMock(return_value=DUMMY_FRAME)
     return reader, writer
 
 
 def rejection_response(register, exception_code):
     """A parsed response standing in for a Modbus exception reply."""
     return MagicMock(
+        tcp_function=194, serial_number=b"0000000001",
         packet_error=False,
         device_function=0x86,          # 0x06 | 0x80, as seen in the issue logs
         exception=exception_code,
@@ -108,6 +111,7 @@ class TestRejectedWrite:
         reader, writer = reader_writer
         client = make_client(connection_retries=3)
         packet_error = MagicMock(
+            tcp_function=194, serial_number=b"0000000001",
             packet_error=True, device_function=6, exception=0,
             parsed_values_dictionary={}, info="bad packet",
         )
