@@ -194,3 +194,34 @@ class TestDiscoverySkipsPushedFrames:
             model = await get_inverter_model_from_device("192.0.2.1", 8000, DONGLE.decode(), SERIAL.decode())
 
         assert model == decode_model_from_registers(model_regs)
+
+
+class TestSerialMismatchWarning:
+    """#110: a mistyped serial made every reply look stale, with nothing at WARNING."""
+
+    @pytest.mark.asyncio
+    async def test_wrong_serial_is_named_once(self, caplog):
+        client = make_client()
+        dongle = FakeDongle(DONGLE, b"4314970067", value_of=value_of)
+
+        with patch('custom_components.lxp_modbus.classes.modbus_client.READ_TIMEOUT', 0.05):
+            for _ in range(2):
+                with pytest.raises(asyncio.TimeoutError):
+                    await client.async_request_registers(dongle, dongle, 0, "input", 4)
+
+        warnings = [r for r in caplog.records
+                    if r.levelname == "WARNING" and "4314970067" in r.getMessage()]
+        assert len(warnings) == 1
+        assert SERIAL.decode() in warnings[0].getMessage()
+
+    @pytest.mark.asyncio
+    async def test_no_warning_once_replies_have_matched(self, caplog):
+        client = make_client()
+        dongle = FakeDongle(DONGLE, SERIAL, value_of=value_of)
+        client._last_good_input_regs = {0: 1}
+        dongle.push(build_frame(DONGLE, b"9999999999", 4, 0, values=[1] * 40))
+
+        await client.async_request_registers(dongle, dongle, 0, "input", 4)
+
+        assert not [r for r in caplog.records
+                    if r.levelname == "WARNING" and "9999999999" in r.getMessage()]

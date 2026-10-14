@@ -74,6 +74,7 @@ class LxpModbusApiClient:
         self._battery_backoff_counter = 0
         self._force_hold_poll = True  # first poll must read settings
         self._stale_frames = 0
+        self._serial_mismatch_warned = False
         self._frame_reader = None
 
         # Composed dependencies
@@ -160,6 +161,23 @@ class LxpModbusApiClient:
 
         return response.parsed_values_dictionary
 
+    def _warn_serial_mismatch(self, received: bytes | None) -> None:
+        """Point at a mistyped inverter serial, the usual cause of "no data" (#110).
+
+        Only while nothing has ever been accepted: once replies match, another
+        serial is just a frame meant for someone else.
+        """
+        if (self._serial_mismatch_warned or not received
+                or self._last_good_input_regs or self._last_good_hold_regs):
+            return
+        self._serial_mismatch_warned = True
+        _LOGGER.warning(
+            "The inverter answered with serial %s, but this integration is configured "
+            "for %s, so its replies are being ignored. Check the inverter serial in the "
+            "integration settings.",
+            received.decode(errors="replace"), self._inverter_serial,
+        )
+
     def _frames_for(self, reader) -> LxpFrameReader:
         """Return the frame reader for this connection, keeping bytes buffered across requests."""
         if self._frame_reader is None or self._frame_reader.reader is not reader:
@@ -177,6 +195,7 @@ class LxpModbusApiClient:
         if response.packet_error:
             return None
         if response.serial_number != self._inverter_serial.encode():
+            self._warn_serial_mismatch(response.serial_number)
             return f"serial {response.serial_number!r}"
         if response.device_function not in (function_code, function_code | 0x80):
             return f"function {response.device_function}"
