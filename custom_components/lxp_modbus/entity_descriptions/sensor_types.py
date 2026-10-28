@@ -2,6 +2,10 @@
 # entity_descriptions/sensor_types.py
 #
 
+from datetime import datetime, timezone
+
+from homeassistant.const import EntityCategory
+
 from ..constants.input_registers import *
 from ..constants.hold_registers import H_NO_FULL_CHG_DAY_CONFIG, H_BOOTLOADER_VERSION_AND_FLAG
 from ..constants.battery_registers import *
@@ -3021,6 +3025,37 @@ SENSOR_TYPES = [
         "enabled": True,
         "visible": True,
         "master_only": False,
+    },
+
+    # --- Data freshness (diagnostic) ---
+    # When every block of a register group was last actually read. Unchanged
+    # registers keep an old last_reported, so automations that need to know whether
+    # a value is current should compare against these instead. Disabled by default:
+    # they change on every poll.
+    {
+        "name": "Input Data Read At",
+        "register": "input_read_at",
+        "register_type": "meta",
+        "extract": lambda value: datetime.fromtimestamp(value, tz=timezone.utc),
+        "device_class": "timestamp",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "icon": "mdi:clock-check-outline",
+        "enabled": False,
+        "visible": True,
+        "master_only": False,
+    },
+    {
+        "name": "Battery Data Read At",
+        "register": "battery_read_at",
+        "register_type": "meta",
+        "extract": lambda value: datetime.fromtimestamp(value, tz=timezone.utc),
+        "device_class": "timestamp",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "icon": "mdi:clock-check-outline",
+        "enabled": False,
+        "visible": True,
+        "master_only": False,
+        "device_group": "Battery",
     },
 
 ]

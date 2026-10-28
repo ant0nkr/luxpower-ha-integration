@@ -63,6 +63,8 @@ class LxpModbusApiClient:
         self._last_good_input_regs = {}
         self._last_good_hold_regs = {}
         self._last_good_battery_data = {}
+        # When each register block last returned data, keyed by (group, start register)
+        self._block_read_at = {}
         self._connection_retry_count = 0
         self._last_successful_connection = None
         self._connection_failure_count = 0
@@ -281,7 +283,30 @@ class LxpModbusApiClient:
             "input": dict(self._last_good_input_regs),
             "hold": dict(self._last_good_hold_regs),
             "battery": {serial: dict(regs) for serial, regs in self._last_good_battery_data.items()},
+            "meta": {
+                "input_read_at": self._group_read_at("input", self._input_block_starts()),
+                "battery_read_at": self._group_read_at("battery", self._battery_block_starts()),
+            },
         }
+
+    def _input_block_starts(self) -> range:
+        return range(0, TOTAL_REGISTERS, self._block_size)
+
+    def _battery_block_starts(self) -> range:
+        return range(BATTERY_INFO_START_REGISTER, BATTERY_INFO_START_REGISTER + 120, self._block_size)
+
+    def _group_read_at(self, group: str, starts: range) -> float | None:
+        """Return when every block of a group was last read, or None if one never was.
+
+        Entities skip state writes while their registers are unchanged, and a pass
+        where some blocks time out still counts as a successful poll, so neither
+        ``last_reported`` nor ``last_success`` proves that a value is current. The
+        oldest block time does: every register in the group is at least that fresh.
+        """
+        times = [self._block_read_at.get((group, start)) for start in starts]
+        if not times or None in times:
+            return None
+        return min(times)
 
     def _last_success_description(self) -> str:
         """Describe how long ago the last successful connection was."""
@@ -333,6 +358,7 @@ class LxpModbusApiClient:
         newly_polled_input_regs = {}
         newly_polled_hold_regs = {}
         newly_polled_battery_data = {}
+        newly_read_blocks = {}
         writer = None
 
         poll_hold = self._should_poll_hold()
@@ -345,10 +371,11 @@ class LxpModbusApiClient:
 
                 try:
                     # Poll INPUT registers (expecting function code 4)
-                    for reg in range(0, TOTAL_REGISTERS, self._block_size):
+                    for reg in self._input_block_starts():
                         reg_block = await self.async_request_registers(writer, reader, reg, "input", 4)
                         if len(reg_block) > 0:
                             newly_polled_input_regs.update(reg_block)
+                            newly_read_blocks[("input", reg)] = time_lib.time()
 
                     # Poll battery data if enabled and inverter reports connected batteries
                     # The decoding routine needs 120 registers for complete block processing
@@ -357,12 +384,12 @@ class LxpModbusApiClient:
                             and newly_polled_input_regs[I_BAT_PARALLEL_NUM] > 0
                             and self._block_size >= 120):
                         if self._should_poll_battery():
-                            for reg in range(BATTERY_INFO_START_REGISTER,
-                                             BATTERY_INFO_START_REGISTER + 120,
-                                             self._block_size):
+                            for reg in self._battery_block_starts():
                                 bat_block = await self.async_request_registers(
                                     writer, reader, reg, "input/bat", 4)
                                 newly_polled_battery_data.update(bat_block)
+                                if bat_block:
+                                    newly_read_blocks[("battery", reg)] = time_lib.time()
                             self._record_battery_result(bool(newly_polled_battery_data))
                         else:
                             self._battery_skipped_polls += 1
@@ -396,6 +423,9 @@ class LxpModbusApiClient:
 
         if len(newly_polled_hold_regs):
             self._last_good_hold_regs.update(newly_polled_hold_regs)
+
+        # Recorded here, with the data, so a pass that raises keeps both unchanged
+        self._block_read_at.update(newly_read_blocks)
 
     def _handle_poll_failure(self, error: Exception | None) -> dict:
         """Decide what to report after every connection attempt failed.
