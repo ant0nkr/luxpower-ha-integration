@@ -56,6 +56,7 @@ def coordinator():
     coord.async_set_updated_data = MagicMock(
         side_effect=lambda data: setattr(coord, "data", data)
     )
+    coord.async_update_listeners = MagicMock()
     coord.hass = MagicMock()
     coord.hass.data = {
         DOMAIN: {
@@ -227,7 +228,22 @@ class TestSharedWritePath:
         api_client.async_write_register.assert_awaited_once_with(21, 1)
         assert coordinator.data["hold"][21] == 1
         entity.async_write_ha_state.assert_called_once()
-        coordinator.async_set_updated_data.assert_called_once()
+        coordinator.async_update_listeners.assert_called_once_with()
+        coordinator.async_set_updated_data.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_write_notification_does_not_reschedule_next_poll(
+        self, coordinator, entry, api_client
+    ):
+        """Issue #180: frequent writes must not postpone periodic polls forever."""
+        coordinator.data["hold"][21] = 0
+        entity = make_switch(coordinator, entry, api_client, SWITCH_A_DESC)
+
+        await entity.async_turn_on()
+
+        assert coordinator.data["hold"][21] == 1
+        coordinator.async_update_listeners.assert_called_once_with()
+        coordinator.async_set_updated_data.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_write_does_not_wait_for_a_poll(self, coordinator, entry, api_client):
