@@ -54,8 +54,18 @@ class LxpResponse:
             self.serial_number = self.data_frame[2:12]
             self.register = int.from_bytes(self.data_frame[12:14], 'little')
 
+            is_read_response = self.device_function in (3, 4)
+            protocol_one_byte_count = (
+                self.protocol_number == 1
+                and is_read_response
+                and len(self.data_frame) > 15
+                and self.data_frame[14] > 0
+                and self.data_frame[14] % 2 == 0
+                and self.data_frame[14] == len(self.data_frame) - 15
+            )
             self.value_length_byte_present = (
-                self.protocol_number in [2, 5] and (self.device_function != 6 and self.device_function < 0x80)
+                is_read_response
+                and (self.protocol_number in [2, 5] or protocol_one_byte_count)
             )
             if self.value_length_byte_present:
                 self.value_length = self.data_frame[14]
