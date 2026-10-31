@@ -85,6 +85,21 @@ I_EGEN_ALL_H = 126 # Total generator energy, High byte (Unit: 0.1kWh).
 I_ELOAD_ALL_L = 172 # Total load energy, Low byte (Unit: 0.1kWh).
 I_ELOAD_ALL_H = 173 # Total load energy, High byte (Unit: 0.1kWh).
 
+# --- Arc-Fault Circuit Interrupter Diagnostics ---
+I_AFCI_CURRENT_CH1 = 140 # AFCI channel 1 current (Unit: mA).
+I_AFCI_CURRENT_CH2 = 141 # AFCI channel 2 current (Unit: mA).
+I_AFCI_CURRENT_CH3 = 142 # AFCI channel 3 current (Unit: mA).
+I_AFCI_CURRENT_CH4 = 143 # AFCI channel 4 current (Unit: mA).
+I_AFCI_FLAG = 144 # AFCI status flag (vendor encoding not documented).
+I_AFCI_ARC_CH1 = 145 # AFCI channel 1 arc value (vendor encoding not documented).
+I_AFCI_ARC_CH2 = 146 # AFCI channel 2 arc value (vendor encoding not documented).
+I_AFCI_ARC_CH3 = 147 # AFCI channel 3 arc value (vendor encoding not documented).
+I_AFCI_ARC_CH4 = 148 # AFCI channel 4 arc value (vendor encoding not documented).
+I_AFCI_MAX_ARC_CH1 = 149 # AFCI channel 1 maximum arc value.
+I_AFCI_MAX_ARC_CH2 = 150 # AFCI channel 2 maximum arc value.
+I_AFCI_MAX_ARC_CH3 = 151 # AFCI channel 3 maximum arc value.
+I_AFCI_MAX_ARC_CH4 = 152 # AFCI channel 4 maximum arc value.
+
 # --- Fault & Warning Codes (32-bit values) ---
 I_FAULT_CODE_L = 60  # Fault Code, Low byte. See fault code definition file.
 I_FAULT_CODE_H = 61  # Fault Code, High byte.

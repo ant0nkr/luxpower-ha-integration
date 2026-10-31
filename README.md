@@ -218,3 +218,31 @@ logger:
   default: info
   logs:
     custom_components.lxp_modbus: debug
+```
+
+### Port 8000 connects, then resets
+
+LuxPower dongles that look alike can expose different local behavior. Check the
+dongle type in the LuxPower cloud: an **E-WIFI ENC** unit may not provide the local
+protocol this integration needs, even when TCP port 8000 appears open. Firmware
+version alone does not reliably identify that capability.
+
+For an **E-WIFI** unit that resets or stops answering on port 8000:
+
+1. Stop scanners, `modpoll`, `lxp-bridge`, and other clients using the dongle.
+2. Reset the dongle, then cold-start the inverter and dongle according to the
+   manufacturer's safety procedure. One reported recovery required a full shutdown,
+   removing the dongle for several minutes, reinstalling it, and reconnecting Wi-Fi.
+3. Reserve the dongle's IP address in DHCP.
+4. Configure this integration with the dongle IP, port 8000, and the exact dongle and
+   inverter serial numbers. Let it make the first protocol connection; malformed
+   probes can leave some dongles refusing later connections until another reset.
+
+If the cloud identifies the dongle as **E-WIFI ENC**, or a clean cold start still
+cannot complete the integration's model read, this integration cannot repair that
+firmware/device limitation. Options reported by users include asking LuxPower for a
+local-capable E-WIFI dongle, using an isolated RS485 adapter with an
+[OpenLux-style bridge](https://github.com/f-garofalo/openlux), or using a
+LuxPower-compatible cloud integration such as
+[EG4 Web Monitor](https://github.com/joyfulhouse/eg4_web_monitor). Cloud polling is
+slower and may expose fewer values than a local connection.
