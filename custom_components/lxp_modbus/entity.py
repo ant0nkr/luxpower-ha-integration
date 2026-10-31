@@ -120,7 +120,12 @@ class ModbusBridgeEntity(CoordinatorEntity):
             # blocked for tens of seconds after the inverter had already applied the
             # change. Publishing inside the lock also means the next write on a shared
             # register composes from confirmed values instead of the local guess.
-            self.coordinator.async_set_updated_data(self._api_client.get_cached_data())
+            # async_set_updated_data() also resets the coordinator's next scheduled
+            # refresh. Frequent writes could therefore postpone polling forever.
+            # Replace the confirmed snapshot and notify entities without touching
+            # the periodic refresh timer.
+            self.coordinator.data = self._api_client.get_cached_data()
+            self.coordinator.async_update_listeners()
 
         return True
 
