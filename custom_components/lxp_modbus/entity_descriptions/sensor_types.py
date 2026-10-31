@@ -14,6 +14,28 @@ from ..constants.warning_codes import WARNING_CODES
 from ..const import CONF_RATED_POWER
 from ..utils import decode_bitmask_to_string, energy_balance, get_highest_set_bit, sum_pv_registers
 
+
+def _afci_sensor(name, register, *, unit=None, icon="mdi:shield-alert-outline"):
+    """Build an opt-in AFCI diagnostic sensor description."""
+    description = {
+        "name": name,
+        "register": register,
+        "register_type": "input",
+        "extract": lambda value: value,
+        "unit": unit,
+        "scale": 1.0,
+        "icon": icon,
+        "suggested_display_precision": 0,
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "enabled": False,
+        "visible": True,
+        "master_only": False,
+    }
+    if unit is not None:
+        description["state_class"] = "measurement"
+    return description
+
+
 SENSOR_TYPES = [
     # --- Calculated Sensors ---
     {
@@ -1825,6 +1847,21 @@ SENSOR_TYPES = [
         "visible": True,
         "master_only": False,
     },
+
+    # --- Arc-Fault Circuit Interrupter diagnostics ---
+    _afci_sensor("AFCI Current CH1", I_AFCI_CURRENT_CH1, unit="mA", icon="mdi:current-dc"),
+    _afci_sensor("AFCI Current CH2", I_AFCI_CURRENT_CH2, unit="mA", icon="mdi:current-dc"),
+    _afci_sensor("AFCI Current CH3", I_AFCI_CURRENT_CH3, unit="mA", icon="mdi:current-dc"),
+    _afci_sensor("AFCI Current CH4", I_AFCI_CURRENT_CH4, unit="mA", icon="mdi:current-dc"),
+    _afci_sensor("AFCI Flag", I_AFCI_FLAG, icon="mdi:flag-outline"),
+    _afci_sensor("AFCI Arc CH1", I_AFCI_ARC_CH1),
+    _afci_sensor("AFCI Arc CH2", I_AFCI_ARC_CH2),
+    _afci_sensor("AFCI Arc CH3", I_AFCI_ARC_CH3),
+    _afci_sensor("AFCI Arc CH4", I_AFCI_ARC_CH4),
+    _afci_sensor("AFCI Max Arc CH1", I_AFCI_MAX_ARC_CH1),
+    _afci_sensor("AFCI Max Arc CH2", I_AFCI_MAX_ARC_CH2),
+    _afci_sensor("AFCI Max Arc CH3", I_AFCI_MAX_ARC_CH3),
+    _afci_sensor("AFCI Max Arc CH4", I_AFCI_MAX_ARC_CH4),
 
     # --- BMS Information ---
     {
