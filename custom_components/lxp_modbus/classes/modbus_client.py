@@ -365,7 +365,16 @@ class LxpModbusApiClient:
         hold_done = False
 
         async with self._lock:
-            reader, writer = await self._connection_manager.async_connect()
+            try:
+                reader, writer = await self._connection_manager.async_connect()
+            except BaseException:
+                if poll_hold:
+                    # The settings pass was due and never started. Keep it for the first
+                    # poll that does connect, or after an outage everything derived from
+                    # settings stays stale for up to HOLD_REGISTER_POLL_EVERY polls after
+                    # the input registers have recovered.
+                    self._force_hold_poll = True
+                raise
             try:
                 await self._connection_manager.async_discard_initial_data(reader)
 
