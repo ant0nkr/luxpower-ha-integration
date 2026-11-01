@@ -7,12 +7,18 @@ from datetime import datetime, timezone
 from homeassistant.const import EntityCategory
 
 from ..constants.input_registers import *
-from ..constants.hold_registers import H_NO_FULL_CHG_DAY_CONFIG, H_BOOTLOADER_VERSION_AND_FLAG
+from ..constants.hold_registers import (
+    H_NO_FULL_CHG_DAY_CONFIG, H_BOOTLOADER_VERSION_AND_FLAG,
+    H_TIME_YEAR_MONTH, H_TIME_DATE_HOUR, H_TIME_MINUTE_SECOND,
+)
 from ..constants.battery_registers import *
 from ..constants.fault_codes import FAULT_CODES
 from ..constants.warning_codes import WARNING_CODES
 from ..const import CONF_RATED_POWER
-from ..utils import decode_bitmask_to_string, energy_balance, get_highest_set_bit, sum_pv_registers
+from ..utils import (
+    advance_inverter_clock, decode_bitmask_to_string, decode_inverter_clock, energy_balance,
+    get_highest_set_bit, sum_pv_registers,
+)
 
 
 def _afci_sensor(name, register, *, unit=None, icon="mdi:shield-alert-outline"):
@@ -659,6 +665,27 @@ SENSOR_TYPES = [
         "enabled": True,
         "visible": True,
         "master_only": True,
+    },
+    {
+        # The inverter's clock, which its charge and discharge windows follow. It is plain
+        # wall-clock time with no timezone, so whether it follows daylight saving depends on
+        # what sets it. Predbat reads it to detect a skew.
+        # A held sensor: derived from the settings registers, carried between their reads
+        # and unavailable if they go stale (see ModbusBridgeSensor). It adds no Modbus
+        # requests. It is disabled by default because advancing it every minute is about
+        # 1,440 state changes a day.
+        "name": "Inverter Time",
+        "register_type": "calculated",
+        "source": "hold",
+        "depends_on": [H_TIME_YEAR_MONTH, H_TIME_DATE_HOUR, H_TIME_MINUTE_SECOND],
+        "extract": lambda registers, entry: decode_inverter_clock(registers),
+        "advance": advance_inverter_clock,
+        "device_class": "timestamp",
+        "state_class": None,
+        "icon": "mdi:clock-outline",
+        "enabled": False,
+        "visible": True,
+        "master_only": False,
     },
     {
         "name": "Battery Charge Power",

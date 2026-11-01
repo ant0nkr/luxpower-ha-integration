@@ -1,20 +1,26 @@
 import logging
 import re
-from datetime import time as dt_time
+from datetime import time as dt_time, timedelta
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from homeassistant.const import Platform
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
     CONF_READ_ONLY,
     CONF_ENTITY_PREFIX,
     CONF_BATTERY_ENTITIES,
+    CONF_POLL_INTERVAL,
     DEFAULT_READ_ONLY,
     DEFAULT_ENTITY_PREFIX,
     DEFAULT_BATTERY_ENTITIES,
+    DEFAULT_POLL_INTERVAL,
+    HELD_POLL_ALLOWANCE_SECONDS,
+    HELD_SOURCE_STALE_CYCLES,
+    HOLD_REGISTER_POLL_EVERY,
 )
 from .constants.hold_registers import H_PV_INPUT_MODEL
 from .entity import ModbusBridgeEntity
@@ -176,10 +182,14 @@ class ModbusBridgeSensor(ModbusBridgeEntity, SensorEntity):
 
         # Determine the raw (unscaled) value based on the sensor type
         elif self._register_type == "calculated":
-            # For calculated sensors, call the special 'extract' lambda
-            input_data = self.coordinator.data.get("input", {})
+            # For calculated sensors, call the special 'extract' lambda. A sensor that
+            # declares "source": "hold" derives from the settings registers instead.
+            held = self._is_held()
+            source_data = self.coordinator.data.get("hold" if held else "input", {})
             calculation_func = self._desc["extract"]
-            raw_val = calculation_func(input_data, self._entry)
+            raw_val = calculation_func(source_data, self._entry)
+            if held and raw_val is not None:
+                raw_val = self._held_value(raw_val)
         elif self._register_type == "battery":
             battery_data = self.coordinator.data.get("battery", {}).get(self._battery_serial, {})
             value = battery_data.get(self._register)
@@ -214,6 +224,61 @@ class ModbusBridgeSensor(ModbusBridgeEntity, SensorEntity):
 
         # For any other sensor (like a code), return the raw value directly
         return raw_val
+
+    # --- Held sensors: derived from the settings (hold) registers ---------------------
+    #
+    # Those registers are only re-read every HOLD_REGISTER_POLL_EVERY polls, so a value
+    # derived from them is carried between reads, and expires if they stop being read.
+    # A description opts in with "source": "hold", and may add "advance", a function of
+    # (value, age, now) that moves the value on by the time since it was read; without
+    # it the value is simply held.
+
+    def _is_held(self) -> bool:
+        return self._desc.get("register_type") == "calculated" and self._desc.get("source") == "hold"
+
+    @property
+    def available(self) -> bool:
+        """A held sensor is unavailable once its source registers are stale."""
+        if self._is_held() and self._held_source_age() is None:
+            return False
+        return super().available
+
+    def _source_fingerprint(self):
+        """A held sensor has no cheap fingerprint, so its state is written on every poll.
+
+        Its value moves between reads, and it must be written when its source goes
+        stale, neither of which a change in the source registers would show.
+        """
+        if self._is_held():
+            return None
+        return super()._source_fingerprint()
+
+    def _held_value(self, value):
+        """Carry a value derived from hold registers to now, or None if its source is stale."""
+        age = self._held_source_age()
+        if age is None:
+            return None
+        advance = self._desc.get("advance")
+        return advance(value, age, dt_util.utcnow()) if advance else value
+
+    def _held_source_age(self):
+        """How long ago the registers this sensor derives from were read from the inverter.
+
+        None when any of them has never been read, or when the oldest has gone more than
+        HELD_SOURCE_STALE_CYCLES settings passes without a read.
+        """
+        read_at = (self.coordinator.data or {}).get("hold_read_at", {})
+        stamps = [read_at.get(register) for register in self._desc["depends_on"]]
+        if not stamps or None in stamps:
+            return None
+
+        age = dt_util.utcnow().timestamp() - min(stamps)
+        poll_interval = self._entry.data.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)
+        limit = (HELD_SOURCE_STALE_CYCLES * HOLD_REGISTER_POLL_EVERY
+                 * (poll_interval + HELD_POLL_ALLOWANCE_SECONDS))
+        if age > limit:
+            return None
+        return timedelta(seconds=max(age, 0))
 
 
 class ModbusBridgeBatterySensor(ModbusBridgeSensor):
