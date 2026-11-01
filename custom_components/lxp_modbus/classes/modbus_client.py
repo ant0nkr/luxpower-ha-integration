@@ -62,6 +62,9 @@ class LxpModbusApiClient:
         self._battery_serials_configured = battery_serials_configured
         self._last_good_input_regs = {}
         self._last_good_hold_regs = {}
+        # When each hold register was last read from the inverter (epoch seconds). The cache
+        # above survives failed polls, so its values alone cannot say how old they are.
+        self._hold_read_at = {}
         self._last_good_battery_data = {}
         self._connection_retry_count = 0
         self._last_successful_connection = None
@@ -268,6 +271,17 @@ class LxpModbusApiClient:
                 self._battery_empty_polls, BATTERY_BACKOFF_POLL_EVERY,
             )
 
+    def _record_hold_read(self, registers: dict, read_at: dict | None = None) -> None:
+        """Cache hold registers read from the inverter, and when.
+
+        ``read_at`` gives the time each register was read, for a pass that took a while;
+        without it they were all read just now.
+        """
+        self._last_good_hold_regs.update(registers)
+        now = time_lib.time()
+        for register in registers:
+            self._hold_read_at[register] = read_at[register] if read_at else now
+
     def _snapshot(self) -> dict:
         """Return a copy of the last known good dataset.
 
@@ -280,6 +294,7 @@ class LxpModbusApiClient:
         return {
             "input": dict(self._last_good_input_regs),
             "hold": dict(self._last_good_hold_regs),
+            "hold_read_at": dict(self._hold_read_at),
             "battery": {serial: dict(regs) for serial, regs in self._last_good_battery_data.items()},
         }
 
@@ -332,6 +347,7 @@ class LxpModbusApiClient:
         """
         newly_polled_input_regs = {}
         newly_polled_hold_regs = {}
+        newly_polled_hold_read_at = {}
         newly_polled_battery_data = {}
         writer = None
 
@@ -374,6 +390,9 @@ class LxpModbusApiClient:
                             reg_block = await self.async_request_registers(writer, reader, reg, "hold", 3)
                             if len(reg_block) > 0:
                                 newly_polled_hold_regs.update(reg_block)
+                                # Stamp each block when it was read, not when the poll ends:
+                                # the pass takes seconds, and the first block is the oldest.
+                                newly_polled_hold_read_at.update(dict.fromkeys(reg_block, time_lib.time()))
                         self._hold_polls += 1
                         hold_done = True
 
@@ -395,7 +414,7 @@ class LxpModbusApiClient:
             self._last_good_battery_data.update(newly_polled_battery_data)
 
         if len(newly_polled_hold_regs):
-            self._last_good_hold_regs.update(newly_polled_hold_regs)
+            self._record_hold_read(newly_polled_hold_regs, newly_polled_hold_read_at)
 
     def _handle_poll_failure(self, error: Exception | None) -> dict:
         """Decide what to report after every connection attempt failed.
@@ -551,7 +570,7 @@ class LxpModbusApiClient:
                 _LOGGER.info("Successfully wrote register %s with value %s.", register, value)
                 # The acknowledgement echoes what the inverter stored, so the cache
                 # can hold a confirmed value without waiting for any read.
-                self._last_good_hold_regs[register] = received_value
+                self._record_hold_read({register: received_value})
                 return True
 
             _LOGGER.warning("Write attempt %s failed: Confirmation mismatch, sent=%s received=%s",
@@ -581,7 +600,7 @@ class LxpModbusApiClient:
             return
 
         if reg_block:
-            self._last_good_hold_regs.update(reg_block)
+            self._record_hold_read(reg_block)
             return
 
         _LOGGER.debug("Post-write re-read of hold block %s returned nothing; "
