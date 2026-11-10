@@ -10,9 +10,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from custom_components.lxp_modbus.classes.modbus_client import LxpModbusApiClient
 
-from fake_dongle import DUMMY_FRAME
+from fake_dongle import DUMMY_FRAME, FakeDongle
 from custom_components.lxp_modbus.const import (
     BATTERY_BACKOFF_POLL_EVERY,
+    BATTERY_INFO_START_REGISTER,
     BATTERY_EMPTY_POLLS_BEFORE_BACKOFF,
     HOLD_REGISTER_POLL_EVERY,
 )
@@ -100,6 +101,53 @@ class TestHoldPollCadence:
                 assert await client.async_write_register(100, 500) is True
 
         assert client._force_hold_poll is True
+
+
+class TestFailedConnectionKeepsSettingsPass:
+    """A poll that never connects must not use up the settings pass it was due.
+
+    Otherwise, after an outage, the first polls that do connect skip the settings read, and
+    everything derived from settings stays stale for up to HOLD_REGISTER_POLL_EVERY polls
+    after the input registers have recovered.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_refused_connection_keeps_the_pass(self):
+        client = make_client()          # the first poll is a settings pass
+
+        with patch("asyncio.open_connection", side_effect=ConnectionRefusedError("refused")):
+            with pytest.raises(ConnectionRefusedError):
+                await client._async_poll_once()
+
+        assert client._force_hold_poll is True
+        assert client._should_poll_hold() is True
+
+    @pytest.mark.asyncio
+    async def test_a_poll_that_was_not_due_a_pass_does_not_claim_one(self):
+        client = make_client()
+        client._should_poll_hold()      # consume the forced first pass
+        assert client._force_hold_poll is False
+
+        with patch("asyncio.open_connection", side_effect=ConnectionRefusedError("refused")):
+            with pytest.raises(ConnectionRefusedError):
+                await client._async_poll_once()
+
+        assert client._force_hold_poll is False
+
+    @pytest.mark.asyncio
+    async def test_the_retry_after_a_refusal_reads_the_settings(self):
+        """The same poll's retry connects, and must be the one that reads the settings."""
+        client = make_client(connection_retries=2, block_size=40)
+        dongle = FakeDongle(dongle=b"BA0000000A", serial=b"0000000001", value_of=lambda f, r: 0)
+
+        async def answer(writer, reader, reg, request_type, function_code):
+            return {reg + offset: 1 for offset in range(40)} if reg < BATTERY_INFO_START_REGISTER else {}
+
+        with patch("asyncio.open_connection", side_effect=[ConnectionRefusedError("refused"), (dongle, dongle)]), \
+                patch.object(client, "async_request_registers", side_effect=answer):
+            data = await client.async_get_data()
+
+        assert data["hold"], "the retry that connected skipped the settings pass"
 
 
 class TestBatteryBackoff:
