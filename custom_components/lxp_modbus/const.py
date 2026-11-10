@@ -100,6 +100,15 @@ MODBUS_EXCEPTION_MESSAGES = {
 # are refreshed every Nth poll, and always immediately after a successful write.
 HOLD_REGISTER_POLL_EVERY = 5
 
+# A sensor derived from hold registers is only as fresh as the last settings pass. Once its
+# source registers have gone this many settings passes without a read, they are stale and
+# not just sparsely read: the connection is down, or the pass keeps failing. The sensor then
+# goes unavailable, so a dead source does not look healthy. A settings pass is every
+# HOLD_REGISTER_POLL_EVERY polls, and each poll takes about HELD_POLL_ALLOWANCE_SECONDS on
+# top of the poll interval, because the next one is scheduled after it finishes.
+HELD_SOURCE_STALE_CYCLES = 3
+HELD_POLL_ALLOWANCE_SECONDS = 10
+
 # Some batteries report nothing on the battery register block even though the
 # inverter reports packs connected (non-LuxPower BMS). Rather than give up, the
 # block is polled less often after repeated empty responses, and every poll again

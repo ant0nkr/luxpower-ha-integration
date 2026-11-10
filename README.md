@@ -148,6 +148,7 @@ Provides detailed operational data, including:
 * Temperatures (Battery, Radiator, etc.)
 * Voltages, Currents, and Frequencies for Grid, EPS, and Battery.
 * Calculated Load Percentage
+* Inverter Time (disabled by default). The clock the inverter keeps, which its charge and discharge windows follow. It is plain wall-clock time with no timezone, and whether it follows daylight saving depends on what sets it, so it can be left on the wrong time. Use it to spot a skewed clock, or point Predbat's `inverter_time` setting at it (use the entity ID shown in the entity's settings). It is read with the settings registers, so it adds no Modbus requests, it is carried forward between their reads, and it goes unavailable if they stop being read. Home Assistant hides disabled entities from the entity list, so to enable it open Settings → Devices & services → Entities, switch on the filter that shows disabled entities, and enable it.
 
 #### Numbers
 Allows control over inverter settings:

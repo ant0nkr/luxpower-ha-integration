@@ -1,3 +1,9 @@
+from datetime import datetime, timedelta
+
+from homeassistant.util import dt as dt_util
+
+from .constants.hold_registers import H_TIME_YEAR_MONTH, H_TIME_DATE_HOUR, H_TIME_MINUTE_SECOND
+
 ALL_PV_STRINGS = frozenset(range(1, 7))
 
 # Hold register 20 (PVInputModel) says which PV inputs are in use, but two mappings
@@ -138,3 +144,50 @@ def energy_balance(registers: dict, add, subtract=()) -> int | None:
         total += sign * value
 
     return total
+
+
+def decode_inverter_clock(hold: dict) -> datetime | None:
+    """Return the inverter's clock from hold registers 12-14 as a naive datetime.
+
+    Each register packs two fields, low byte first: year-2000 | month<<8,
+    day | hour<<8 and minute | second<<8. The result is the wall-clock time the inverter
+    keeps, which carries no timezone of its own.
+
+    Returns None when a register has not been read yet or the fields are not a real
+    date, which is what an inverter that has not started up fully reports.
+    """
+    year_month = hold.get(H_TIME_YEAR_MONTH)
+    date_hour = hold.get(H_TIME_DATE_HOUR)
+    minute_second = hold.get(H_TIME_MINUTE_SECOND)
+    if year_month is None or date_hour is None or minute_second is None:
+        return None
+
+    try:
+        return datetime(
+            2000 + (year_month & 0xFF), year_month >> 8,
+            date_hour & 0xFF, date_hour >> 8,
+            minute_second & 0xFF, minute_second >> 8,
+        )
+    except ValueError:
+        return None
+
+
+def advance_inverter_clock(reading: datetime, age: timedelta, now: datetime) -> datetime:
+    """Return the inverter's clock now, from a reading taken ``age`` ago, as an aware datetime.
+
+    The clock keeps running between the infrequent reads of its registers, so the reading is
+    moved on by its age. The result is to the minute, which is all anything checking a skew
+    needs, and which keeps the state to one change a minute however often it is polled.
+
+    A clock has no zone of its own, so it is read in Home Assistant's. In the repeated hour
+    when the clocks go back the same wall-clock time occurs twice, and a correct clock is the
+    one closer to ``now``: always taking the first would make it look an hour slow.
+
+    The same rule has a cost in the hour that is skipped when the clocks go forward: a
+    reading that does not exist locally is taken as whichever of the two is nearer, so an
+    inverter that has not yet moved forward looks correct for that one hour.
+    """
+    reading = (reading + age + timedelta(seconds=30)).replace(second=0, microsecond=0)
+    zone = dt_util.get_default_time_zone()
+    candidates = [reading.replace(tzinfo=zone, fold=fold) for fold in (0, 1)]
+    return min(candidates, key=lambda candidate: abs(candidate - now))
