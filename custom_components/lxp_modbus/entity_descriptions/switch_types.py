@@ -108,6 +108,16 @@ SWITCH_TYPES = [
     # bit 15); writing bit 15 of register 22 corrupted the PV start voltage instead.
     # Register 110: H_FUNCTION_ENABLE_3
     {
+        "name": "Share Battery",
+        "register": H_FUNCTION_ENABLE_3,
+        "register_type": "hold",
+        "extract": lambda reg: get_bits(reg, 3, 1),
+        "compose": lambda orig, value: set_bits(orig, 3, 1, value),
+        "icon": "mdi:battery-sync",
+        "device_class": "switch",
+        "device_group": "Battery",
+    },
+    {
         "name": "Fast Zero Export",
         "register": H_FUNCTION_ENABLE_3, # 110
         "register_type": "hold",
