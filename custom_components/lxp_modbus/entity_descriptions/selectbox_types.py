@@ -3,6 +3,22 @@ from ..utils import get_bits, set_bits
 
 SELECTBOX_TYPES = [
     {
+        "name": "Fan 1 Speed Slope",
+        "register": H_FAN_CONTROL,
+        "register_type": "hold",
+        "extract": lambda reg: get_bits(reg, 0, 1),
+        "compose": lambda orig, value: set_bits(orig, 0, 1, value),
+        "options": {0: "Default", 1: "High Speed"},
+    },
+    {
+        "name": "Fan 2 Speed Slope",
+        "register": H_FAN_CONTROL,
+        "register_type": "hold",
+        "extract": lambda reg: get_bits(reg, 8, 1),
+        "compose": lambda orig, value: set_bits(orig, 8, 1, value),
+        "options": {0: "Default", 1: "High Speed"},
+    },
+    {
         "name": "AC Charge Type",
         "register": H_SYSTEM_ENABLE_2,   # 120
         "register_type": "hold",

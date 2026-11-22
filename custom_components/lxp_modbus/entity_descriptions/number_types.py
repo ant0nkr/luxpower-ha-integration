@@ -3,8 +3,31 @@
 #
 
 from ..constants.hold_registers import *
+from ..utils import get_bits, set_bits
 
 NUMBER_TYPES = [
+    {
+        "name": "Fan 1 Max Speed",
+        "register": H_FAN_CONTROL,
+        "register_type": "hold",
+        "min": 20,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "extract": lambda reg: get_bits(reg, 1, 7),
+        "compose": lambda orig, value: set_bits(orig, 1, 7, value),
+    },
+    {
+        "name": "Fan 2 Max Speed",
+        "register": H_FAN_CONTROL,
+        "register_type": "hold",
+        "min": 20,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "extract": lambda reg: get_bits(reg, 9, 7),
+        "compose": lambda orig, value: set_bits(orig, 9, 7, value),
+    },
     # --- System & Grid ---
     {
         "name": "Modbus Address",
