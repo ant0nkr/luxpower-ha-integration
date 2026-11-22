@@ -207,6 +207,16 @@ SWITCH_TYPES = [
     },
     # Register 179: H_FUNCTION_ENABLE_4
     {
+        "name": "Generator Boost",
+        "register": H_FUNCTION_ENABLE_4,
+        "register_type": "hold",
+        "extract": lambda reg: get_bits(reg, 8, 1),
+        "compose": lambda orig, value: set_bits(orig, 8, 1, value),
+        "icon": "mdi:generator-portable",
+        "device_class": "switch",
+        "device_group": "Generator",
+    },
+    {
         "name": "AC CT Direction Reversed",
         "register": H_FUNCTION_ENABLE_4, # 179
         "register_type": "hold",
