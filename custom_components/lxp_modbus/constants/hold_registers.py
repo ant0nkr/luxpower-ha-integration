@@ -226,7 +226,7 @@ H_SOCCURVE_SOC2 = 174 # SOC reading based on Voltage point 2 (Unit: 1%, Range: 0
 H_SOCCURVE_INNER_RESISTANCE = 175 # Inner resistance of the battery (Unit: uOhm, Range: 0-100).
 H_MAX_GRID_INPUT_POWER = 176 # Max. Grid import power limitation (Unit: 0.1kW).
 H_GEN_RATED_POWER = 177 # The rated power of generator input (Unit: W).
-# Register 178 is not defined in the Hold Register table.
+H_FAN_CONTROL = 178  # Observed on SNA6000 Bcaa: each fan's byte holds (max speed % << 1) | slope.
 H_FUNCTION_ENABLE_4 = 179 # uFunctionEn2 bits:
 # Bit 0: uFunctionEn2.ACCTDirection (0=Normal, 1=Reversed)
 # Bit 1: uFunctionEn2.PVCTDirection (0=Normal, 1=Reversed)
