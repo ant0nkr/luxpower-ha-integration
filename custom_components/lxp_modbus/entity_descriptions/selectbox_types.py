@@ -9,6 +9,10 @@ SELECTBOX_TYPES = [
         "extract": lambda reg: get_bits(reg, 0, 1),
         "compose": lambda orig, value: set_bits(orig, 0, 1, value),
         "options": {0: "Default", 1: "High Speed"},
+        "icon": "mdi:fan",
+        "enabled": True,
+        "visible": True,
+        "master_only": False,
     },
     {
         "name": "Fan 2 Speed Slope",
@@ -17,6 +21,10 @@ SELECTBOX_TYPES = [
         "extract": lambda reg: get_bits(reg, 8, 1),
         "compose": lambda orig, value: set_bits(orig, 8, 1, value),
         "options": {0: "Default", 1: "High Speed"},
+        "icon": "mdi:fan",
+        "enabled": True,
+        "visible": True,
+        "master_only": False,
     },
     {
         "name": "AC Charge Type",
