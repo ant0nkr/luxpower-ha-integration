@@ -297,6 +297,18 @@ SWITCH_TYPES = [
         "master_only": True,
         "device_group": "Grid",
     },
+    {
+        "name": "N-PE Bond",
+        "register": H_GRID_CT_CONNECTION, # 226
+        "register_type": "hold",
+        "extract": lambda reg: get_bits(reg, 4, 1),
+        "compose": lambda orig, value: set_bits(orig, 4, 1, value),
+        "icon": "mdi:electric-switch",
+        "device_class": "switch",
+        "enabled": False,
+        "visible": True,
+        "master_only": False,
+    },
     # Register 233: H_FUNCTION_ENABLE_5
     {
         "name": "Quick Charge Start",
